@@ -34,7 +34,7 @@ subsystem, all merged into `main` via pull request (never a direct push to
 |---|---|
 | `main` | Integration branch; releases are tagged here |
 | `architecture` | ADRs, architecture docs, root project scaffolding |
-| `cli` | The interactive/non-interactive CLI (Cobra-based wizard) |
+| `cli` | The interactive/non-interactive CLI |
 | `core` | Orchestration engine, plugin host, config model, local registry |
 | `sdk` | `sdk/go` — the library plugin/template authors use |
 | `templates` | Template plugins (V1: `go-rest-api`) |

@@ -13,7 +13,7 @@ Walks through five prompts, in order:
 2. **Project type** — only `Backend Service` is selectable in V1; other
    options are shown as "(coming soon)".
 3. **Language** — only `Go` is selectable in V1.
-4. **Framework** — only `REST API (net/http + chi)` is selectable in V1.
+4. **Framework** — only `REST API (net/http)` is selectable in V1.
 5. **Capabilities** (multi-select) — `git-init`, `readme`,
    `github-actions-ci`.
 

@@ -5,7 +5,7 @@
 ```
                        ┌─────────────┐
                        │     cli     │  interactive/non-interactive wizard
-                       │ (Cobra)     │  (theme, project type, language,
+                       │ (stdlib)    │  (theme, project type, language,
                        └──────┬──────┘   framework, capabilities)
                               │ calls
                               ▼
