@@ -1,13 +1,14 @@
 // Package engine orchestrates one "bootstrap new" run: validate answers,
-// resolve the matching template plugin, generate the project, then apply
-// each selected capability plugin in order.
+// resolve the matching template plugin and every selected capability
+// plugin up front (fail-fast, before anything runs), order capabilities
+// respecting any declared dependencies, generate the project, then apply
+// each capability in that order.
 package engine
 
 import (
 	"fmt"
 
 	"github.com/intruder0007/Cli/core/config"
-	"github.com/intruder0007/Cli/core/plugin"
 	"github.com/intruder0007/Cli/core/registry"
 	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
@@ -18,15 +19,40 @@ type Summary struct {
 	NextSteps    []string
 }
 
+// Resolver finds plugins by wizard answer / capability id. Satisfied by
+// *registry.Registry; an interface here so Engine.Run's fail-fast and
+// dependency-ordering logic can be unit-tested with a fake, no plugin
+// discovery or subprocess needed.
+type Resolver interface {
+	ResolveTemplate(projectType, language, framework string) (registry.Plugin, error)
+	ResolveCapability(capabilityID string) (registry.Plugin, error)
+}
+
+// Runner invokes a resolved plugin. Satisfied by *plugin.Host.
+type Runner interface {
+	Generate(entrypointPath, expectedName, expectedProtocolVersion string, req sdk.GenerateRequest) (sdk.GenerateResponse, error)
+	Apply(entrypointPath, expectedName, expectedProtocolVersion string, req sdk.ApplyRequest) (sdk.ApplyResponse, error)
+}
+
 // Engine ties a plugin registry and a plugin host together.
 type Engine struct {
-	Registry *registry.Registry
-	Host     *plugin.Host
+	Registry Resolver
+	Host     Runner
 }
 
 // New returns an Engine using the given registry and host.
-func New(reg *registry.Registry, host *plugin.Host) *Engine {
+func New(reg Resolver, host Runner) *Engine {
 	return &Engine{Registry: reg, Host: host}
+}
+
+// CapabilityCycleError means the selected capabilities' dependsOn
+// declarations form a cycle that can't be ordered.
+type CapabilityCycleError struct {
+	CapabilityIDs []string
+}
+
+func (e *CapabilityCycleError) Error() string {
+	return fmt.Sprintf("capabilities have a dependency cycle among: %v", e.CapabilityIDs)
 }
 
 func answersMap(a config.Answers) map[string]string {
@@ -38,9 +64,10 @@ func answersMap(a config.Answers) map[string]string {
 	}
 }
 
-// Run validates answers, generates the project from the matching template
-// plugin, then applies every selected capability plugin in the order the
-// user chose them.
+// Run validates answers, resolves the template and every selected
+// capability up front (so a bad capability id fails before anything has
+// written a file), orders capabilities by any declared dependencies,
+// generates the project, then applies each capability in that order.
 func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	var summary Summary
 
@@ -53,7 +80,12 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 		return summary, err
 	}
 
-	genResp, err := e.Host.Generate(tmpl.EntrypointPath, sdk.GenerateRequest{
+	ordered, err := e.resolveOrderedCapabilities(a.Capabilities)
+	if err != nil {
+		return summary, err
+	}
+
+	genResp, err := e.Host.Generate(tmpl.EntrypointPath, tmpl.Manifest.Name, sdk.ProtocolVersion, sdk.GenerateRequest{
 		TargetDir:   targetDir,
 		ProjectName: a.ProjectName,
 		Answers:     answersMap(a),
@@ -64,22 +96,88 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	summary.FilesWritten = append(summary.FilesWritten, genResp.FilesWritten...)
 	summary.NextSteps = append(summary.NextSteps, genResp.NextSteps...)
 
-	for _, capID := range a.Capabilities {
-		cap, err := e.Registry.ResolveCapability(capID)
-		if err != nil {
-			return summary, err
-		}
-		applyResp, err := e.Host.Apply(cap.EntrypointPath, sdk.ApplyRequest{
+	for _, c := range ordered {
+		applyResp, err := e.Host.Apply(c.EntrypointPath, c.Manifest.Name, sdk.ProtocolVersion, sdk.ApplyRequest{
 			TargetDir:   targetDir,
 			ProjectName: a.ProjectName,
 			Answers:     answersMap(a),
 		})
 		if err != nil {
-			return summary, fmt.Errorf("applying capability %q: %w", capID, err)
+			return summary, fmt.Errorf("applying capability %q: %w", c.Manifest.CapabilityID, err)
 		}
 		summary.FilesWritten = append(summary.FilesWritten, applyResp.FilesWritten...)
 		summary.NextSteps = append(summary.NextSteps, applyResp.NextSteps...)
 	}
 
 	return summary, nil
+}
+
+// resolveOrderedCapabilities resolves every selected capability id
+// (fail-fast: no subprocess spawned yet, so a bad id is caught before
+// anything runs) and returns them ordered by any declared dependencies.
+func (e *Engine) resolveOrderedCapabilities(capabilityIDs []string) ([]registry.Plugin, error) {
+	caps := make([]registry.Plugin, 0, len(capabilityIDs))
+	for _, capID := range capabilityIDs {
+		c, err := e.Registry.ResolveCapability(capID)
+		if err != nil {
+			return nil, err
+		}
+		caps = append(caps, c)
+	}
+	return sortByDependencies(caps)
+}
+
+// sortByDependencies orders caps so that every plugin's DependsOn
+// entries (among capability ids present in caps — an entry naming a
+// capability the user didn't select is ignored) come before it. Ties
+// (no ordering constraint between two plugins) are broken by caps'
+// original order, so a run with no dependsOn declarations at all — true
+// for every V1 capability — produces exactly the user's selection order,
+// unchanged. Kahn's algorithm, scanning in original order each pass for
+// full determinism.
+func sortByDependencies(caps []registry.Plugin) ([]registry.Plugin, error) {
+	index := make(map[string]int, len(caps))
+	for i, c := range caps {
+		index[c.Manifest.CapabilityID] = i
+	}
+
+	inDegree := make([]int, len(caps))
+	dependents := make([][]int, len(caps))
+	for i, c := range caps {
+		for _, dep := range c.Manifest.DependsOn {
+			j, ok := index[dep]
+			if !ok {
+				continue // dependency not selected by the user: ignored
+			}
+			dependents[j] = append(dependents[j], i)
+			inDegree[i]++
+		}
+	}
+
+	used := make([]bool, len(caps))
+	ordered := make([]registry.Plugin, 0, len(caps))
+	for len(ordered) < len(caps) {
+		progressed := false
+		for i := range caps {
+			if used[i] || inDegree[i] > 0 {
+				continue
+			}
+			used[i] = true
+			ordered = append(ordered, caps[i])
+			progressed = true
+			for _, j := range dependents[i] {
+				inDegree[j]--
+			}
+		}
+		if !progressed {
+			var remaining []string
+			for i, u := range used {
+				if !u {
+					remaining = append(remaining, caps[i].Manifest.CapabilityID)
+				}
+			}
+			return nil, &CapabilityCycleError{CapabilityIDs: remaining}
+		}
+	}
+	return ordered, nil
 }

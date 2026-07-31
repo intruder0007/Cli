@@ -20,6 +20,39 @@ type Plugin struct {
 	EntrypointPath string
 }
 
+// DiscoveryIssue records a plugin.json that was found but skipped,
+// because it failed to parse or failed Manifest.Validate(). A single
+// broken third-party plugin should never prevent discovery of everything
+// else — see DiscoverWithIssues.
+type DiscoveryIssue struct {
+	Path string
+	Err  error
+}
+
+func (i DiscoveryIssue) Error() string {
+	return fmt.Sprintf("%s: %v", i.Path, i.Err)
+}
+
+// TemplateNotFoundError is returned by ResolveTemplate when no
+// discovered template plugin matches.
+type TemplateNotFoundError struct {
+	ProjectType, Language, Framework string
+}
+
+func (e *TemplateNotFoundError) Error() string {
+	return fmt.Sprintf("no template plugin found for project type %q, language %q, framework %q", e.ProjectType, e.Language, e.Framework)
+}
+
+// CapabilityNotFoundError is returned by ResolveCapability when no
+// discovered capability plugin has the requested capabilityId.
+type CapabilityNotFoundError struct {
+	CapabilityID string
+}
+
+func (e *CapabilityNotFoundError) Error() string {
+	return fmt.Sprintf("no capability plugin found for id %q", e.CapabilityID)
+}
+
 // Registry discovers plugins under a fixed set of local directories.
 type Registry struct {
 	dirs []string
@@ -31,40 +64,87 @@ func New(dirs ...string) *Registry {
 	return &Registry{dirs: dirs}
 }
 
-// Discover scans all configured directories and returns every plugin
-// found. A missing directory is skipped, not an error (V1 ships with
-// only some of templates/, plugins/ present depending on what's merged).
+// Discover scans all configured directories and returns every *valid*
+// plugin found. Manifests that fail to parse or fail Validate() are
+// skipped, not errored on — use DiscoverWithIssues to see what was
+// skipped and why (e.g. for `bootstrap plugins list` diagnostics).
 func (r *Registry) Discover() ([]Plugin, error) {
+	plugins, _, err := r.discover()
+	return plugins, err
+}
+
+// DiscoverWithIssues is like Discover, but also returns manifests that
+// were found but skipped.
+func (r *Registry) DiscoverWithIssues() ([]Plugin, []DiscoveryIssue, error) {
+	return r.discover()
+}
+
+func (r *Registry) discover() ([]Plugin, []DiscoveryIssue, error) {
 	var found []Plugin
+	var issues []DiscoveryIssue
 	for _, dir := range r.dirs {
-		entries, err := os.ReadDir(dir)
+		dirFound, dirIssues, err := scanDir(dir)
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, fmt.Errorf("registry: reading %s: %w", dir, err)
+			return nil, nil, err
 		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			pluginDir := filepath.Join(dir, entry.Name())
-			manifestPath := filepath.Join(pluginDir, "plugin.json")
-			data, err := os.ReadFile(manifestPath)
-			if err != nil {
-				continue // not a plugin directory
-			}
-			var m sdk.Manifest
-			if err := json.Unmarshal(data, &m); err != nil {
-				return nil, fmt.Errorf("registry: parsing %s: %w", manifestPath, err)
-			}
-			found = append(found, Plugin{
-				Manifest:       m,
-				EntrypointPath: resolveEntrypoint(pluginDir, m.Entrypoint),
-			})
+		found = append(found, dirFound...)
+		issues = append(issues, dirIssues...)
+	}
+	return found, issues, nil
+}
+
+// scanDir checks each immediate subdirectory of dir for a plugin.json. A
+// missing dir is not an error (V1 ships with only some of templates/,
+// plugins/ present depending on what's merged).
+func scanDir(dir string) ([]Plugin, []DiscoveryIssue, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("registry: reading %s: %w", dir, err)
+	}
+
+	var found []Plugin
+	var issues []DiscoveryIssue
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pluginDir := filepath.Join(dir, entry.Name())
+		plugin, issue, ok := loadPluginDir(pluginDir)
+		switch {
+		case issue != nil:
+			issues = append(issues, *issue)
+		case ok:
+			found = append(found, plugin)
 		}
 	}
-	return found, nil
+	return found, issues, nil
+}
+
+// loadPluginDir reads and validates pluginDir/plugin.json. ok is false
+// with no issue when pluginDir isn't a plugin directory at all (no
+// plugin.json) — that's not an error, just not a match.
+func loadPluginDir(pluginDir string) (plugin Plugin, issue *DiscoveryIssue, ok bool) {
+	manifestPath := filepath.Join(pluginDir, "plugin.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return Plugin{}, nil, false
+	}
+
+	var m sdk.Manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return Plugin{}, &DiscoveryIssue{Path: manifestPath, Err: fmt.Errorf("parsing manifest: %w", err)}, false
+	}
+	if err := m.Validate(); err != nil {
+		return Plugin{}, &DiscoveryIssue{Path: manifestPath, Err: err}, false
+	}
+
+	return Plugin{
+		Manifest:       m,
+		EntrypointPath: resolveEntrypoint(pluginDir, m.Entrypoint),
+	}, nil, true
 }
 
 // resolveEntrypoint joins pluginDir and entrypoint, and on platforms
@@ -98,7 +178,7 @@ func (r *Registry) ResolveTemplate(projectType, language, framework string) (Plu
 			return p, nil
 		}
 	}
-	return Plugin{}, fmt.Errorf("no template plugin found for project type %q, language %q, framework %q", projectType, language, framework)
+	return Plugin{}, &TemplateNotFoundError{ProjectType: projectType, Language: language, Framework: framework}
 }
 
 // ResolveCapability finds a capability plugin by its capabilityId.
@@ -112,5 +192,5 @@ func (r *Registry) ResolveCapability(capabilityID string) (Plugin, error) {
 			return p, nil
 		}
 	}
-	return Plugin{}, fmt.Errorf("no capability plugin found for id %q", capabilityID)
+	return Plugin{}, &CapabilityNotFoundError{CapabilityID: capabilityID}
 }
