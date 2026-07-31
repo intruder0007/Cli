@@ -61,10 +61,13 @@ commands:
 // nor the working directory is the repo root) takes priority, then
 // directories relative to the running executable, then the current
 // working directory (matching a repo-root `./bin/bootstrap new` dev
-// workflow).
+// workflow). Deduplicated by absolute path, since the executable's
+// directory and the working directory are the same thing for the most
+// common real usage — cd into an extracted release archive and run
+// ./bootstrap — which would otherwise register every plugin twice.
 func pluginDirs() []string {
 	if override := os.Getenv("CLI_PLUGIN_DIRS"); override != "" {
-		return strings.Split(override, string(os.PathListSeparator))
+		return dedupeAbs(strings.Split(override, string(os.PathListSeparator)))
 	}
 
 	dirs := []string{filepath.Join("templates"), filepath.Join("plugins", "builtin")}
@@ -75,7 +78,24 @@ func pluginDirs() []string {
 			filepath.Join(exeDir, "plugins", "builtin"),
 		}, dirs...)
 	}
-	return dirs
+	return dedupeAbs(dirs)
+}
+
+func dedupeAbs(dirs []string) []string {
+	seen := make(map[string]bool, len(dirs))
+	var out []string
+	for _, d := range dirs {
+		abs, err := filepath.Abs(d)
+		if err != nil {
+			abs = d
+		}
+		if seen[abs] {
+			continue
+		}
+		seen[abs] = true
+		out = append(out, d)
+	}
+	return out
 }
 
 func splitCSV(s string) []string {
