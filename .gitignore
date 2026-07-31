@@ -1,0 +1,28 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin/
+/dist/
+
+# Go tooling
+/vendor/
+
+# Generated projects created by running the CLI locally during development
+/tmp-generated/
+/.bootstrap-out/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Env / local secrets
+.env
+.env.local
