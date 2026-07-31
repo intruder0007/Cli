@@ -1,0 +1,9 @@
+{
+  "protocolVersion": "1",
+  "name": "git-init",
+  "version": "0.1.0",
+  "kind": "capability",
+  "displayName": "Initialize Git repository",
+  "capabilityId": "git-init",
+  "entrypoint": "./git-init"
+}

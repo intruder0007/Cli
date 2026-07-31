@@ -1,0 +1,9 @@
+{
+  "protocolVersion": "1",
+  "name": "readme",
+  "version": "0.1.0",
+  "kind": "capability",
+  "displayName": "Enhance README",
+  "capabilityId": "readme",
+  "entrypoint": "./readme"
+}
