@@ -8,4 +8,5 @@ use (
 	./plugins/builtin/git-init
 	./plugins/builtin/readme
 	./plugins/builtin/github-actions-ci
+	./tests
 )
