@@ -10,7 +10,7 @@ for how to add an entry.
 
 ## [Unreleased]
 
-## [0.1.0] - TBD
+## [0.1.0] - 2026-07-31
 
 Initial release. Interactive/non-interactive CLI wizard (theme, project
 type, language, framework, capabilities), generating a Go REST API
