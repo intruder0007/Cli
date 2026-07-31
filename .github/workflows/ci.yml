@@ -16,6 +16,14 @@ jobs:
         with:
           go-version: "1.22"
 
+      # tests/integration's TestEndToEndGenerateNodeRestAPI needs a real
+      # node/npm on PATH — explicit rather than relying on whatever
+      # ubuntu-latest happens to ship, so a runner-image change can't
+      # silently start skipping the cross-language proof.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       # tests/integration exercises the git-init capability plugin,
       # which runs `git commit`; a fresh runner has no git identity
       # configured (developer machines usually already have one, so
@@ -30,7 +38,7 @@ jobs:
       # trying to build modules that aren't present yet.
       - name: Build & vet present modules
         run: |
-          for m in cli core sdk/go templates/go-rest-api \
+          for m in cli core sdk/go templates/go-rest-api templates/node-rest-api \
                    plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci \
                    tests; do
             if [ -f "$m/go.mod" ]; then
@@ -41,7 +49,7 @@ jobs:
 
       - name: Test present modules
         run: |
-          for m in cli core sdk/go templates/go-rest-api \
+          for m in cli core sdk/go templates/go-rest-api templates/node-rest-api \
                    plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci \
                    tests; do
             if [ -f "$m/go.mod" ]; then

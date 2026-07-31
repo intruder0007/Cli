@@ -141,3 +141,57 @@ func TestEndToEndGenerateGoRestAPI(t *testing.T) {
 		t.Fatalf("expected git-init to have created a commit: %v\n%s", err, out)
 	}
 }
+
+// TestEndToEndGenerateNodeRestAPI is the cross-language proof: the same
+// pipeline (bootstrap new -> a real, tested project), but for V1's
+// second template, a genuinely different language. No npm install step
+// on purpose — the generated project has zero npm dependencies, so
+// `npm test` passing with no install first is itself part of the proof.
+func TestEndToEndGenerateNodeRestAPI(t *testing.T) {
+	if _, err := exec.LookPath("npm"); err != nil {
+		t.Skip("npm not found on PATH — skipping (see .github/workflows/ci.yml for the CI Node.js setup)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("bootstrap"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "node-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/node-rest-api", filepath.Join(templateDir, exeName("node-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "node-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-node-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "backend-service",
+		"--language", "node",
+		"--framework", "http-api",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "CLI_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("bootstrap new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{"package.json", "server.js", "server.test.js", "README.md", ".gitignore"}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	testCmd := exec.Command("npm", "test")
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Node project failed its own tests: %v\n%s", err, out)
+	}
+}

@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "node-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "Node.js HTTP API Service",
+  "projectType": "backend-service",
+  "language": "node",
+  "framework": "http-api",
+  "entrypoint": "./node-rest-api"
+}

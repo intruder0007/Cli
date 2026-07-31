@@ -2,7 +2,7 @@ EXE := $(shell go env GOEXE)
 
 # go.work workspaces don't expand "./..." from the repo root (it isn't a
 # module itself), so every module must be listed explicitly here.
-MODULES := ./cli/... ./core/... ./sdk/go/... ./templates/go-rest-api/... \
+MODULES := ./cli/... ./core/... ./sdk/go/... ./templates/go-rest-api/... ./templates/node-rest-api/... \
 	./plugins/builtin/git-init/... ./plugins/builtin/readme/... ./plugins/builtin/github-actions-ci/... ./tests/...
 
 # See ADR-0006: version is injected via ldflags rather than hand-edited.
@@ -14,6 +14,7 @@ LDFLAGS := -X main.version=$(VERSION)
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/bootstrap$(EXE) ./cli
 	go build -o templates/go-rest-api/go-rest-api$(EXE) ./templates/go-rest-api
+	go build -o templates/node-rest-api/node-rest-api$(EXE) ./templates/node-rest-api
 	go build -o plugins/builtin/git-init/git-init$(EXE) ./plugins/builtin/git-init
 	go build -o plugins/builtin/readme/readme$(EXE) ./plugins/builtin/readme
 	go build -o plugins/builtin/github-actions-ci/github-actions-ci$(EXE) ./plugins/builtin/github-actions-ci
@@ -30,6 +31,7 @@ run: build
 clean:
 	rm -f bin/bootstrap$(EXE)
 	rm -f templates/go-rest-api/go-rest-api$(EXE)
+	rm -f templates/node-rest-api/node-rest-api$(EXE)
 	rm -f plugins/builtin/git-init/git-init$(EXE)
 	rm -f plugins/builtin/readme/readme$(EXE)
 	rm -f plugins/builtin/github-actions-ci/github-actions-ci$(EXE)

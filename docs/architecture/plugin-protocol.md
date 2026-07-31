@@ -41,6 +41,7 @@ bootstrap plugins list` prints these to stderr).
 | `kind` | `"template"` \| `"capability"` | yes | |
 | `displayName` | string | yes | Shown in the wizard / `bootstrap plugins list`. |
 | `projectType`, `language`, `framework` | string | templates only | Must match wizard answer values. |
+| `supportedPlatforms` | []string | templates only, optional | GOOS values (`linux`/`darwin`/`windows`) this template supports. Empty means all platforms; `core/registry.ResolveTemplate` filters out non-matching platforms. See ADR-0009. |
 | `capabilityId` | string | capabilities only | Stable id selected in the capabilities step. |
 | `dependsOn` | []string | capabilities only, optional | Other selected capabilityIds that must be applied first (see "Capability ordering"). An entry naming a capability the user didn't select is ignored — plugins are never auto-installed. |
 | `entrypoint` | string | yes | Path to the executable, relative to the manifest. |
