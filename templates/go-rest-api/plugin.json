@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "go-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "Go REST API Service",
+  "projectType": "backend-service",
+  "language": "go",
+  "framework": "rest-api",
+  "entrypoint": "./go-rest-api"
+}
