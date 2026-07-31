@@ -1,0 +1,244 @@
+package prompt
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"strings"
+
+	"golang.org/x/term"
+
+	"github.com/intruder0007/Cli/core/config"
+)
+
+// RunWizard walks through project name, theme, project type, language,
+// framework, and capabilities, in that order, writing prompts to out.
+// When stdin and stdout are both real terminals, it uses the arrow-key/
+// space-select menus from menu.go; otherwise (piped input, CI, tests) it
+// falls back verbatim to plain numbered-list + line input, so no
+// non-interactive usage changes behavior. See ADR-0007.
+func RunWizard(out io.Writer) (config.Answers, error) {
+	stdinFd := int(os.Stdin.Fd())
+	stdoutFd := int(os.Stdout.Fd())
+	if term.IsTerminal(stdinFd) && term.IsTerminal(stdoutFd) {
+		a, err := runWizardTUI(stdinFd, out)
+		switch err {
+		case nil, ErrCancelled:
+			return a, err
+		default:
+			// Raw mode failed to engage, or some other terminal-level
+			// problem — degrade to the line-based wizard rather than
+			// fail outright.
+			fmt.Fprintln(out, "(falling back to plain input)")
+		}
+	}
+	return runWizardLine(bufio.NewReader(os.Stdin), out)
+}
+
+// runWizardTUI runs the arrow-key/space-select wizard. It puts the
+// terminal into raw mode for its whole duration (not per-question) to
+// avoid flicker, and guarantees the terminal is restored — including on
+// Ctrl+C, which in raw mode arrives as a plain byte rather than a real
+// SIGINT (see menu.go's readKey), and on an external interrupt signal,
+// which is still possible even though the terminal itself won't
+// generate one locally.
+func runWizardTUI(fd int, out io.Writer) (config.Answers, error) {
+	var a config.Answers
+
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		return a, err
+	}
+	restored := false
+	restore := func() {
+		if !restored {
+			_ = term.Restore(fd, oldState)
+			restored = true
+		}
+	}
+	defer restore()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	go func() {
+		if _, ok := <-sigCh; ok {
+			restore()
+			os.Exit(130)
+		}
+	}()
+	defer signal.Stop(sigCh)
+
+	in := os.Stdin
+
+	fmt.Fprint(out, "\r\nProject name: ")
+	a.ProjectName = readLineRaw(in, out)
+	if a.ProjectName == "" {
+		return a, fmt.Errorf("project name is required")
+	}
+	fmt.Fprint(out, "\r\n")
+
+	cfg, _ := LoadConfig()
+	defaultTheme := cfg.Theme
+	if defaultTheme == "" {
+		defaultTheme = "default"
+	}
+
+	themeID, err := SelectMenu(out, in, GetTheme(defaultTheme, false), "Theme", themeOptions, defaultTheme)
+	if err != nil {
+		return a, err
+	}
+	a.Theme = themeID
+	t := GetTheme(a.Theme, false)
+
+	// Persist the interactively-chosen theme (wizard-only, per
+	// ADR-0007 — --theme/--answers never write this).
+	cfg.Theme = a.Theme
+	_ = SaveConfig(cfg)
+
+	a.ProjectType, err = SelectMenu(out, in, t, "Project type", projectTypes, "backend-service")
+	if err != nil {
+		return a, err
+	}
+	a.Language, err = SelectMenu(out, in, t, "Language", languages, "go")
+	if err != nil {
+		return a, err
+	}
+	a.Framework, err = SelectMenu(out, in, t, "Framework", frameworks, "rest-api")
+	if err != nil {
+		return a, err
+	}
+	a.Capabilities, err = MultiSelectMenu(out, in, t, "Capabilities (space to toggle, enter to confirm)", capabilityOptions)
+	if err != nil {
+		return a, err
+	}
+
+	return a, a.Validate()
+}
+
+// readLineRaw reads a line of typed input while the terminal is in raw
+// mode (so it must echo each byte itself and handle backspace, unlike
+// bufio.Reader.ReadString over a cooked terminal).
+func readLineRaw(r io.Reader, w io.Writer) string {
+	var line []byte
+	for {
+		b, err := readByte(r)
+		if err != nil {
+			return string(line)
+		}
+		switch b {
+		case '\r', '\n':
+			return string(line)
+		case 127, 8: // backspace/delete
+			if len(line) > 0 {
+				line = line[:len(line)-1]
+				fmt.Fprint(w, "\b \b")
+			}
+		case 3: // Ctrl+C
+			return ""
+		default:
+			line = append(line, b)
+			fmt.Fprintf(w, "%c", b)
+		}
+	}
+}
+
+// runWizardLine is the original plain-text wizard: numbered options,
+// typed answers, one line at a time. Used whenever stdin/stdout aren't
+// both real terminals.
+func runWizardLine(in *bufio.Reader, out io.Writer) (config.Answers, error) {
+	var a config.Answers
+
+	a.ProjectName = ask(in, out, "Project name", "")
+	if a.ProjectName == "" {
+		return a, fmt.Errorf("project name is required")
+	}
+
+	a.Theme = askChoice(in, out, "Theme", themeOptions, "default")
+	a.ProjectType = askChoice(in, out, "Project type", projectTypes, "backend-service")
+	a.Language = askChoice(in, out, "Language", languages, "go")
+	a.Framework = askChoice(in, out, "Framework", frameworks, "rest-api")
+	a.Capabilities = askMulti(in, out, "Capabilities (comma-separated numbers or ids, blank for none)", capabilityOptions)
+
+	return a, a.Validate()
+}
+
+func ask(in *bufio.Reader, out io.Writer, label, def string) string {
+	if def != "" {
+		fmt.Fprintf(out, "%s [%s]: ", label, def)
+	} else {
+		fmt.Fprintf(out, "%s: ", label)
+	}
+	line, _ := in.ReadString('\n')
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return def
+	}
+	return line
+}
+
+// askChoice prints numbered options (marking unavailable ones "(coming
+// soon)"), and reprompts until an available option is chosen by number
+// or id.
+func askChoice(in *bufio.Reader, out io.Writer, label string, opts []option, def string) string {
+	for {
+		fmt.Fprintf(out, "%s:\n", label)
+		for i, o := range opts {
+			suffix := ""
+			if !o.Available {
+				suffix = " (coming soon)"
+			}
+			fmt.Fprintf(out, "  %d) %s%s\n", i+1, o.Name, suffix)
+		}
+		answer := ask(in, out, "Choose", def)
+
+		for i, o := range opts {
+			if answer == o.ID || answer == fmt.Sprintf("%d", i+1) || strings.EqualFold(answer, o.Name) {
+				if !o.Available {
+					fmt.Fprintf(out, "%q is coming soon; please choose an available option.\n", o.Name)
+					break
+				}
+				return o.ID
+			}
+		}
+		if answer == def {
+			return def
+		}
+	}
+}
+
+func askMulti(in *bufio.Reader, out io.Writer, label string, opts []option) []string {
+	for {
+		fmt.Fprintf(out, "%s:\n", label)
+		for i, o := range opts {
+			fmt.Fprintf(out, "  %d) %s\n", i+1, o.ID)
+		}
+		answer := ask(in, out, "Choose", "")
+		if answer == "" {
+			return nil
+		}
+
+		var selected []string
+		ok := true
+		for _, tok := range strings.Split(answer, ",") {
+			tok = strings.TrimSpace(tok)
+			matched := ""
+			for i, o := range opts {
+				if tok == o.ID || tok == fmt.Sprintf("%d", i+1) {
+					matched = o.ID
+					break
+				}
+			}
+			if matched == "" {
+				fmt.Fprintf(out, "unknown capability %q\n", tok)
+				ok = false
+				break
+			}
+			selected = append(selected, matched)
+		}
+		if ok {
+			return selected
+		}
+	}
+}

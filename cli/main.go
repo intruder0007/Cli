@@ -1,9 +1,8 @@
 // Command bootstrap is the Cli interactive/non-interactive wizard. See
-// docs/cli/usage.md.
+// docs/cli/usage.md and ADR-0007.
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -27,7 +26,7 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
+		fmt.Fprintln(os.Stderr, prompt.HelpText)
 		os.Exit(1)
 	}
 
@@ -36,23 +35,16 @@ func main() {
 		cmdNew(os.Args[2:])
 	case "plugins":
 		cmdPlugins(os.Args[2:])
+	case "config":
+		cmdConfig(os.Args[2:])
 	case "version":
 		fmt.Println("bootstrap version " + version)
 	case "-h", "--help", "help":
-		printUsage()
+		fmt.Println(prompt.HelpText)
 	default:
-		printUsage()
+		fmt.Fprintln(os.Stderr, prompt.HelpText)
 		os.Exit(1)
 	}
-}
-
-func printUsage() {
-	fmt.Fprintln(os.Stderr, `usage: bootstrap <command> [flags]
-
-commands:
-  new [project-name]   generate a new project (interactive if no flags/answers given)
-  plugins list          list discovered template and capability plugins
-  version                print the CLI version`)
 }
 
 // pluginDirs returns the local directories the registry scans: an
@@ -147,6 +139,13 @@ func cmdNew(args []string) {
 	projectName, rest := extractProjectName(args, map[string]bool{"-no-color": true, "--no-color": true})
 
 	fs := flag.NewFlagSet("new", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, `usage: bootstrap new [project-name] [flags]
+
+Generates a new project. With no flags and no --answers, runs the
+interactive wizard. Flags below make it non-interactive.`)
+		fs.PrintDefaults()
+	}
 	theme := fs.String("theme", "", "CLI theme: default or minimal")
 	projectType := fs.String("project-type", "", "project type, e.g. backend-service")
 	language := fs.String("language", "", "language, e.g. go")
@@ -157,6 +156,7 @@ func cmdNew(args []string) {
 	fs.Parse(rest)
 
 	noColorEnv := os.Getenv("NO_COLOR") != ""
+	interactive := *answersFile == "" && projectName == "" && *theme == "" && *projectType == "" && *language == "" && *framework == "" && *caps == ""
 
 	var a config.Answers
 	var err error
@@ -164,7 +164,7 @@ func cmdNew(args []string) {
 	switch {
 	case *answersFile != "":
 		a, err = prompt.ParseAnswersFile(*answersFile)
-	case projectName != "" || *theme != "" || *projectType != "" || *language != "" || *framework != "" || *caps != "":
+	case !interactive:
 		if *theme == "" {
 			*theme = "default"
 		}
@@ -177,19 +177,31 @@ func cmdNew(args []string) {
 			Capabilities: splitCSV(*caps),
 		}
 	default:
-		a, err = prompt.RunWizard(bufio.NewReader(os.Stdin), os.Stdout)
+		// Banner uses the persisted theme if one exists (a wizard run
+		// always saves its own choice — see wizard.go), else "default".
+		// The wizard's own theme question can still change it.
+		bannerTheme := "default"
+		if cfg, cfgErr := prompt.LoadConfig(); cfgErr == nil && cfg.Theme != "" {
+			bannerTheme = cfg.Theme
+		}
+		prompt.Banner(os.Stdout, prompt.GetTheme(bannerTheme, *noColor || noColorEnv))
+		a, err = prompt.RunWizard(os.Stdout)
 	}
 
-	renderer := prompt.NewRenderer(a.Theme, *noColor || noColorEnv)
+	t := prompt.GetTheme(a.Theme, *noColor || noColorEnv)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, renderer.Failure(err.Error()))
+		if err == prompt.ErrCancelled {
+			fmt.Fprintln(os.Stdout, t.Info("cancelled"))
+			os.Exit(130)
+		}
+		prompt.ErrorScreen(os.Stdout, t, err)
 		os.Exit(1)
 	}
 
 	targetDir, err := filepath.Abs(a.ProjectName)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, renderer.Failure(err.Error()))
+		prompt.ErrorScreen(os.Stdout, t, err)
 		os.Exit(1)
 	}
 
@@ -198,35 +210,29 @@ func cmdNew(args []string) {
 
 	summary, err := eng.Run(targetDir, a)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, renderer.Failure(err.Error()))
+		prompt.ErrorScreen(os.Stdout, t, err)
 		os.Exit(1)
 	}
 
-	fmt.Fprintln(os.Stdout, renderer.Success(fmt.Sprintf("Generated %s", a.ProjectName)))
-	for _, f := range summary.FilesWritten {
-		fmt.Fprintln(os.Stdout, renderer.Info("  + "+f))
-	}
-	if len(summary.NextSteps) > 0 {
-		fmt.Fprintln(os.Stdout, renderer.Header("Next steps:"))
-		for _, s := range summary.NextSteps {
-			fmt.Fprintln(os.Stdout, "  "+s)
-		}
-	}
+	prompt.SuccessScreen(os.Stdout, t, a.ProjectName, summary.FilesWritten, summary.NextSteps)
 }
 
 func cmdPlugins(args []string) {
 	fs := flag.NewFlagSet("plugins", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "usage: bootstrap plugins list")
+	}
 	fs.Parse(args)
 
 	if fs.NArg() == 0 || fs.Arg(0) != "list" {
-		fmt.Fprintln(os.Stderr, "usage: bootstrap plugins list")
+		fs.Usage()
 		os.Exit(1)
 	}
 
 	reg := registry.New(pluginDirs()...)
 	found, err := reg.Discover()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		prompt.ErrorScreen(os.Stdout, prompt.GetTheme("default", os.Getenv("NO_COLOR") != ""), err)
 		os.Exit(1)
 	}
 	if len(found) == 0 {
@@ -236,4 +242,57 @@ func cmdPlugins(args []string) {
 	for _, p := range found {
 		fmt.Printf("%s\t%s\t%s\t%s\n", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version, p.Manifest.DisplayName)
 	}
+}
+
+func configUsage() {
+	fmt.Fprintln(os.Stderr, `usage: bootstrap config get theme
+       bootstrap config set theme <default|minimal>`)
+}
+
+func cmdConfig(args []string) {
+	if len(args) < 2 || (args[0] != "get" && args[0] != "set") || args[1] != "theme" {
+		configUsage()
+		os.Exit(1)
+	}
+	if args[0] == "get" {
+		cmdConfigGetTheme()
+	} else {
+		cmdConfigSetTheme(args[2:])
+	}
+}
+
+func cmdConfigGetTheme() {
+	cfg, err := prompt.LoadConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	fmt.Println(cfg.Theme)
+}
+
+func cmdConfigSetTheme(rest []string) {
+	if len(rest) < 1 {
+		configUsage()
+		os.Exit(1)
+	}
+	name := rest[0]
+	if !isValidThemeName(name) {
+		fmt.Fprintf(os.Stderr, "unknown theme %q (want one of: %s)\n", name, strings.Join(prompt.ThemeNames(), ", "))
+		os.Exit(1)
+	}
+	cfg, _ := prompt.LoadConfig()
+	cfg.Theme = name
+	if err := prompt.SaveConfig(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+}
+
+func isValidThemeName(name string) bool {
+	for _, n := range prompt.ThemeNames() {
+		if n == name {
+			return true
+		}
+	}
+	return false
 }

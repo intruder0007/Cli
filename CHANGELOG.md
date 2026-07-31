@@ -10,6 +10,26 @@ for how to add an entry.
 
 ## [Unreleased]
 
+### Added
+
+- Arrow-key/space-select interactive wizard (falls back to plain
+  numbered-list prompts automatically when stdin/stdout aren't real
+  terminals — no non-interactive behavior change). See ADR-0007.
+- Theme is now a registry (`RegisterTheme`), not hardcoded — the
+  concrete extension point for future themes.
+- Theme persistence: `bootstrap config get|set theme`; the interactive
+  wizard now remembers your last-chosen theme.
+- Redesigned success/error screens; error screen includes a recovery
+  hint for a few known failure shapes.
+- Startup banner and richer per-command help (`bootstrap help`,
+  `bootstrap <command> -h`).
+
+### Changed
+
+- `cli` module now depends on `golang.org/x/term` (raw-mode terminal
+  input) — isolated to `cli` only; `core`/`sdk/go`/`templates/*`/
+  `plugins/*` remain dependency-free.
+
 ## [0.1.1] - 2026-07-31
 
 ### Fixed
