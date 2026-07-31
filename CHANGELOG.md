@@ -10,6 +10,15 @@ for how to add an entry.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-31
+
+### Fixed
+
+- `bootstrap plugins list` showed every plugin twice when running a
+  released binary from its own extracted directory (the normal usage) —
+  `pluginDirs()` now deduplicates its candidate directories by absolute
+  path.
+
 ## [0.1.0] - 2026-07-31
 
 Initial release. Interactive/non-interactive CLI wizard (theme, project
@@ -18,5 +27,6 @@ backend service (`templates/go-rest-api`) with three capability plugins
 (`git-init`, `readme`, `github-actions-ci`), over a subprocess +
 line-delimited JSON-RPC 2.0 plugin protocol (`sdk/go`).
 
-[Unreleased]: https://github.com/intruder0007/Cli/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/intruder0007/Cli/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/intruder0007/Cli/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/intruder0007/Cli/releases/tag/v0.1.0
