@@ -60,11 +60,27 @@ func (r *Registry) Discover() ([]Plugin, error) {
 			}
 			found = append(found, Plugin{
 				Manifest:       m,
-				EntrypointPath: filepath.Join(pluginDir, m.Entrypoint),
+				EntrypointPath: resolveEntrypoint(pluginDir, m.Entrypoint),
 			})
 		}
 	}
 	return found, nil
+}
+
+// resolveEntrypoint joins pluginDir and entrypoint, and on platforms
+// (Windows) where exec.Command requires an explicit executable
+// extension, falls back to entrypoint+".exe" if the extensionless path
+// doesn't exist. Go's exec.Command does not auto-resolve PATHEXT for
+// explicit relative/absolute paths, only for bare names via LookPath.
+func resolveEntrypoint(pluginDir, entrypoint string) string {
+	base := filepath.Join(pluginDir, entrypoint)
+	if _, err := os.Stat(base); err == nil {
+		return base
+	}
+	if _, err := os.Stat(base + ".exe"); err == nil {
+		return base + ".exe"
+	}
+	return base
 }
 
 // ResolveTemplate finds the (V1: single) template plugin matching the
