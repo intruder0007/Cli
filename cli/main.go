@@ -17,7 +17,13 @@ import (
 	"github.com/intruder0007/Cli/core/registry"
 )
 
-const version = "0.1.0"
+// version is overridden at build time via:
+//
+//	go build -ldflags "-X main.version=vX.Y.Z" ./cli
+//
+// See ADR-0006 and .github/workflows/release.yml. Left as "dev" for
+// ordinary local builds (go run, go build with no ldflags, go install).
+var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {

@@ -1,0 +1,83 @@
+name: Release
+
+# Triggered by pushing a semver tag (v0.1.0, v1.2.3, ...). See ADR-0006:
+# every target is cross-compiled from a single ubuntu-latest runner (no
+# cgo anywhere in this repo), and each archive is a self-contained
+# directory laid out exactly the way cli/main.go's pluginDirs() already
+# looks for plugins relative to the executable — no runtime code change
+# needed, only this packaging step.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Ensure zip is available
+        run: command -v zip >/dev/null || sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Build release archives
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          PLUGIN_DIRS="templates/go-rest-api plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci"
+          TARGETS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
+
+          for target in $TARGETS; do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            EXE=""
+            if [ "$GOOS" = "windows" ]; then EXE=".exe"; fi
+
+            OUT="dist/cli_${VERSION}_${GOOS}_${GOARCH}"
+            rm -rf "$OUT"
+            mkdir -p "$OUT"
+
+            echo "== building $GOOS/$GOARCH =="
+            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=${VERSION}" -o "$OUT/bootstrap${EXE}" ./cli
+
+            for p in $PLUGIN_DIRS; do
+              name=$(basename "$p")
+              mkdir -p "$OUT/$p"
+              GOOS=$GOOS GOARCH=$GOARCH go build -o "$OUT/$p/${name}${EXE}" "./$p"
+              cp "$p/plugin.json" "$OUT/$p/plugin.json"
+            done
+
+            cp LICENSE "$OUT/LICENSE"
+            cp README.md "$OUT/README.md"
+
+            (
+              cd dist
+              if [ "$GOOS" = "windows" ]; then
+                zip -qr "cli_${VERSION}_${GOOS}_${GOARCH}.zip" "cli_${VERSION}_${GOOS}_${GOARCH}"
+              else
+                tar -czf "cli_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "cli_${VERSION}_${GOOS}_${GOARCH}"
+              fi
+            )
+            rm -rf "$OUT"
+          done
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz *.zip > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${VERSION}" dist/*.tar.gz dist/*.zip dist/SHA256SUMS.txt \
+            --title "${VERSION}" \
+            --generate-notes
