@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, architecture, cli, core, templates, plugins, sdk, tests]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      # go.work only exists once the cli branch has merged; guard so PRs
+      # against earlier branches (architecture/sdk/core/...) don't fail
+      # trying to build modules that aren't present yet.
+      - name: Build & vet present modules
+        run: |
+          for m in cli core sdk/go templates/go-rest-api \
+                   plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci \
+                   tests; do
+            if [ -f "$m/go.mod" ]; then
+              echo "== $m =="
+              (cd "$m" && go build ./... && go vet ./...)
+            fi
+          done
+
+      - name: Test present modules
+        run: |
+          for m in cli core sdk/go templates/go-rest-api \
+                   plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci \
+                   tests; do
+            if [ -f "$m/go.mod" ]; then
+              echo "== $m =="
+              (cd "$m" && go test ./...)
+            fi
+          done
