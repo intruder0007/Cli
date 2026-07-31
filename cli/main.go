@@ -230,10 +230,13 @@ func cmdPlugins(args []string) {
 	}
 
 	reg := registry.New(pluginDirs()...)
-	found, err := reg.Discover()
+	found, issues, err := reg.DiscoverWithIssues()
 	if err != nil {
 		prompt.ErrorScreen(os.Stdout, prompt.GetTheme("default", os.Getenv("NO_COLOR") != ""), err)
 		os.Exit(1)
+	}
+	for _, issue := range issues {
+		fmt.Fprintf(os.Stderr, "skipped %s: %v\n", issue.Path, issue.Err)
 	}
 	if len(found) == 0 {
 		fmt.Println("no plugins found")

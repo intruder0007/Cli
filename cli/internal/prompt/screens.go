@@ -1,9 +1,14 @@
 package prompt
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/intruder0007/Cli/core/engine"
+	"github.com/intruder0007/Cli/core/plugin"
+	"github.com/intruder0007/Cli/core/registry"
 )
 
 // Banner prints a small startup wordmark before the interactive wizard
@@ -48,20 +53,46 @@ func ErrorScreen(w io.Writer, t Theme, err error) {
 	}
 }
 
+// suggestFix matches on typed errors first (errors.As walks the %w
+// chain, so this still works through engine.Run's "generating from
+// template %q: %w" / "applying capability %q: %w" wrapping), falling
+// back to string matching only for errors not yet typed (e.g.
+// core/config's plain validation errors).
 func suggestFix(err error) string {
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "no template plugin found"):
+	var notFound *registry.TemplateNotFoundError
+	if errors.As(err, &notFound) {
 		return "hint: run `bootstrap plugins list` to see what's discoverable, and check CLI_PLUGIN_DIRS if templates/ isn't next to the binary."
-	case strings.Contains(msg, "no capability plugin found"):
-		return "hint: run `bootstrap plugins list` — the capability id must match a discovered plugin.json's capabilityId exactly."
-	case strings.Contains(msg, "starting"):
-		return "hint: the plugin binary may be missing or not executable — rebuild it (see docs/plugins/authoring.md / docs/templates/authoring.md)."
-	case strings.Contains(msg, "project name"):
-		return "hint: project names must start with a letter and contain only letters, digits, - or _."
-	default:
-		return ""
 	}
+	var capNotFound *registry.CapabilityNotFoundError
+	if errors.As(err, &capNotFound) {
+		return "hint: run `bootstrap plugins list` — the capability id must match a discovered plugin.json's capabilityId exactly."
+	}
+	var startErr *plugin.StartError
+	if errors.As(err, &startErr) {
+		return "hint: the plugin binary may be missing or not executable — rebuild it (see docs/plugins/authoring.md / docs/templates/authoring.md)."
+	}
+	var protoErr *plugin.ProtocolMismatchError
+	if errors.As(err, &protoErr) {
+		return "hint: the plugin was built against a different protocol version — rebuild it against the current sdk/go."
+	}
+	var identityErr *plugin.IdentityMismatchError
+	if errors.As(err, &identityErr) {
+		return "hint: the running plugin binary doesn't match its plugin.json — rebuild it, or check for a stale binary left over from another plugin."
+	}
+	var timeoutErr *plugin.TimeoutError
+	if errors.As(err, &timeoutErr) {
+		return "hint: the plugin didn't respond in time — it may be hung; check its logs (stderr) for what it was doing."
+	}
+	var cycleErr *engine.CapabilityCycleError
+	if errors.As(err, &cycleErr) {
+		return "hint: the selected capabilities' dependsOn declarations form a cycle — check each capability's plugin.json."
+	}
+
+	msg := err.Error()
+	if strings.Contains(msg, "project name") {
+		return "hint: project names must start with a letter and contain only letters, digits, - or _."
+	}
+	return ""
 }
 
 // HelpText is the top-level `bootstrap`/`bootstrap help` output.

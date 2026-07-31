@@ -23,7 +23,43 @@ type Manifest struct {
 	Language        string `json:"language,omitempty"`
 	Framework       string `json:"framework,omitempty"`
 	CapabilityID    string `json:"capabilityId,omitempty"`
-	Entrypoint      string `json:"entrypoint"`
+	// DependsOn names other capabilityIds that must be applied before
+	// this one, among whichever capabilities the user actually selected
+	// (an entry naming a capability the user didn't select is ignored —
+	// V1 never auto-installs capabilities). Capabilities only.
+	DependsOn  []string `json:"dependsOn,omitempty"`
+	Entrypoint string   `json:"entrypoint"`
+}
+
+// Validate checks that a manifest has the fields required for its kind.
+// Used both by core/registry (discovering third-party manifests on disk)
+// and by Serve (a plugin validating its own loaded manifest).
+func (m Manifest) Validate() error {
+	if m.ProtocolVersion == "" {
+		return fmt.Errorf("manifest: protocolVersion is required")
+	}
+	if m.Name == "" {
+		return fmt.Errorf("manifest: name is required")
+	}
+	if m.Version == "" {
+		return fmt.Errorf("manifest: version is required")
+	}
+	if m.Entrypoint == "" {
+		return fmt.Errorf("manifest: entrypoint is required")
+	}
+	switch m.Kind {
+	case "template":
+		if m.ProjectType == "" || m.Language == "" || m.Framework == "" {
+			return fmt.Errorf("manifest: template %q requires projectType, language, and framework", m.Name)
+		}
+	case "capability":
+		if m.CapabilityID == "" {
+			return fmt.Errorf("manifest: capability %q requires capabilityId", m.Name)
+		}
+	default:
+		return fmt.Errorf("manifest: %q has unknown kind %q (want \"template\" or \"capability\")", m.Name, m.Kind)
+	}
+	return nil
 }
 
 // GenerateRequest is sent to plugin.generate (templates only).
@@ -90,6 +126,10 @@ func Serve(plugin interface{}) {
 	manifest, err := loadManifest()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sdk: loading plugin.json: %v\n", err)
+		os.Exit(1)
+	}
+	if err := manifest.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "sdk: invalid plugin.json: %v\n", err)
 		os.Exit(1)
 	}
 

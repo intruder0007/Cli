@@ -12,6 +12,30 @@ for how to add an entry.
 
 ### Added
 
+- Manifest validation (`sdk.Manifest.Validate()`) — required fields per
+  kind, checked both on discovery and by plugins validating their own
+  manifest. `bootstrap plugins list` now reports skipped/invalid
+  manifests instead of silently ignoring them.
+- Identity + protocol version cross-check at the `plugin.initialize`
+  handshake — catches a stale or swapped plugin binary before
+  `generate`/`apply` runs against it.
+- Optional `dependsOn` capability manifest field; selected capabilities
+  are topologically ordered by it (stable — no `dependsOn` at all
+  preserves the user's selection order exactly, true for every V1
+  capability).
+- Typed errors across `core` (`registry`/`plugin`/`engine`) replacing
+  plain strings; `cli`'s error screen now matches on error type first.
+- Per-call timeout on plugin JSON-RPC calls (default 30s) — a hung
+  plugin is killed rather than blocking the CLI forever.
+
+See ADR-0008.
+
+### Changed
+
+- `engine.Run` now resolves the template and every selected capability
+  before invoking any of them (fail-fast — a bad capability id no
+  longer lets an earlier capability's side effects happen first).
+
 - Arrow-key/space-select interactive wizard (falls back to plain
   numbered-list prompts automatically when stdin/stdout aren't real
   terminals — no non-interactive behavior change). See ADR-0007.
