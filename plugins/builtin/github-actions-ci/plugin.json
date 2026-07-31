@@ -1,0 +1,9 @@
+{
+  "protocolVersion": "1",
+  "name": "github-actions-ci",
+  "version": "0.1.0",
+  "kind": "capability",
+  "displayName": "GitHub Actions CI (go build + go test)",
+  "capabilityId": "github-actions-ci",
+  "entrypoint": "./github-actions-ci"
+}
