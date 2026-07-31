@@ -26,6 +26,14 @@ module (or set of modules). Cross-subsystem contracts live in `sdk/go`
 1. **Never commit directly to `main`.** Branch from the relevant long-lived
    branch (e.g. a topic branch off `cli` for CLI changes), or work directly
    on the long-lived branch for larger efforts.
+
+   **Once a long-lived branch has been merged into `main`, treat it as
+   stale rather than branching further topic work from it directly** —
+   it won't have picked up whatever other long-lived branches merged into
+   `main` afterward (V1's `cli` branch, for example, predates `core`,
+   `sdk`, etc. all being on `main`). Branch new work from `main` instead;
+   only branch from a long-lived branch if you've first confirmed it's
+   actually up to date with `main`.
 2. Open a pull request into the long-lived branch (for topic branches) or
    into `main` (for a long-lived branch that's ready to ship).
 3. CI (`.github/workflows/ci.yml`) must pass: `go vet`, `go build`, `go test`
@@ -48,6 +56,19 @@ implement the `sdk.Plugin` interface from `sdk/go`, add a `plugin.json`
 manifest, and place it under `templates/<name>/` or
 `plugins/builtin/<name>/`. No core code changes are required — that's the
 whole point of plugin-first extensibility.
+
+## Releases
+
+See [ADR-0006](docs/architecture/adr/0006-release-process.md). In short:
+
+- Add a bullet under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md)
+  for any user-visible change, in the same PR as the change.
+- To cut a release: rename `[Unreleased]` to the new `[x.y.z] - YYYY-MM-DD`
+  version, add a fresh empty `[Unreleased]` section above it, update the
+  compare links at the bottom of the file, commit, then push a `vX.Y.Z`
+  tag. Pushing the tag triggers `.github/workflows/release.yml`, which
+  cross-compiles the CLI + all V1 plugins for every target and publishes
+  a GitHub Release with checksums — no manual build/upload step.
 
 ## Coding standards
 
