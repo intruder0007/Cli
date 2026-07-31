@@ -16,6 +16,15 @@ jobs:
         with:
           go-version: "1.22"
 
+      # tests/integration exercises the git-init capability plugin,
+      # which runs `git commit`; a fresh runner has no git identity
+      # configured (developer machines usually already have one, so
+      # this only ever surfaces in CI).
+      - name: Configure git identity for the integration test
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+
       # go.work only exists once the cli branch has merged; guard so PRs
       # against earlier branches (architecture/sdk/core/...) don't fail
       # trying to build modules that aren't present yet.
