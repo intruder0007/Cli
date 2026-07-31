@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
@@ -163,8 +164,9 @@ func resolveEntrypoint(pluginDir, entrypoint string) string {
 	return base
 }
 
-// ResolveTemplate finds the (V1: single) template plugin matching the
-// given project type, language, and framework.
+// ResolveTemplate finds a template plugin matching the given project
+// type, language, and framework, that also supports the current
+// platform (see Manifest.SupportedPlatforms).
 func (r *Registry) ResolveTemplate(projectType, language, framework string) (Plugin, error) {
 	plugins, err := r.Discover()
 	if err != nil {
@@ -174,11 +176,33 @@ func (r *Registry) ResolveTemplate(projectType, language, framework string) (Plu
 		if p.Manifest.Kind != "template" {
 			continue
 		}
-		if p.Manifest.ProjectType == projectType && p.Manifest.Language == language && p.Manifest.Framework == framework {
-			return p, nil
+		if p.Manifest.ProjectType != projectType || p.Manifest.Language != language || p.Manifest.Framework != framework {
+			continue
 		}
+		if !supportsCurrentPlatform(p.Manifest) {
+			continue
+		}
+		return p, nil
 	}
 	return Plugin{}, &TemplateNotFoundError{ProjectType: projectType, Language: language, Framework: framework}
+}
+
+// supportsCurrentPlatform reports whether m.SupportedPlatforms includes
+// runtime.GOOS. An empty list means "all platforms."
+func supportsCurrentPlatform(m sdk.Manifest) bool {
+	return supportsPlatform(m, runtime.GOOS)
+}
+
+func supportsPlatform(m sdk.Manifest, goos string) bool {
+	if len(m.SupportedPlatforms) == 0 {
+		return true
+	}
+	for _, p := range m.SupportedPlatforms {
+		if p == goos {
+			return true
+		}
+	}
+	return false
 }
 
 // ResolveCapability finds a capability plugin by its capabilityId.

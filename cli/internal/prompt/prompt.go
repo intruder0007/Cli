@@ -33,13 +33,21 @@ var projectTypes = []option{
 
 var languages = []option{
 	{"go", "Go", true},
+	{"node", "Node.js", true},
 	{"typescript", "TypeScript", false},
 	{"python", "Python", false},
 	{"rust", "Rust", false},
 }
 
+// frameworks isn't filtered by the selected language in V1 — every
+// framework is shown regardless of language, and picking a combination
+// with no matching template (e.g. go + http-api) fails with a clear
+// registry.TemplateNotFoundError, same as any other "coming soon"
+// combination. A per-language framework list is a reasonable future
+// improvement, not required for V1's two real templates.
 var frameworks = []option{
 	{"rest-api", "REST API (net/http)", true},
+	{"http-api", "HTTP API (node:http)", true},
 	{"grpc", "gRPC", false},
 	{"graphql", "GraphQL", false},
 }

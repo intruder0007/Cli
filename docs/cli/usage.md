@@ -22,16 +22,23 @@ Six prompts, in order:
    default next time.
 2. **Project type** — only `Backend Service` is selectable in V1; other
    options are shown as "(coming soon)".
-3. **Language** — only `Go` is selectable in V1.
-4. **Framework** — only `REST API (net/http)` is selectable in V1.
+3. **Language** — `Go` or `Node.js` are selectable in V1 (see
+   [ADR-0009](../architecture/adr/0009-second-template-cross-language.md) —
+   the first two real proof points of "cross-language").
+4. **Framework** — `REST API (net/http)` (Go) or `HTTP API (node:http)`
+   (Node.js) are selectable in V1. The framework list isn't filtered by
+   the language you picked — choosing a combination with no matching
+   template (e.g. Go + `HTTP API`) fails cleanly with a hint to run
+   `bootstrap plugins list`, same as any other unmatched combination.
 5. **Capabilities** (multi-select, checkboxes) — `git-init`, `readme`,
-   `github-actions-ci`.
+   `github-actions-ci`. Go-project-specific today; only offered
+   meaningfully alongside the Go template for now.
 
 The CLI then resolves the matching template plugin, generates the project,
 applies each selected capability in the order chosen, and prints a success
 screen with the files written and next steps (e.g. `cd my-project && go
-run .`). A failure prints an error screen with a recovery hint where one
-is known.
+run .` or `cd my-project && npm start`). A failure prints an error screen
+with a recovery hint where one is known.
 
 ## Non-interactive
 

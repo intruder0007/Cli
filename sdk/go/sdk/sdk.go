@@ -27,8 +27,12 @@ type Manifest struct {
 	// this one, among whichever capabilities the user actually selected
 	// (an entry naming a capability the user didn't select is ignored —
 	// V1 never auto-installs capabilities). Capabilities only.
-	DependsOn  []string `json:"dependsOn,omitempty"`
-	Entrypoint string   `json:"entrypoint"`
+	DependsOn []string `json:"dependsOn,omitempty"`
+	// SupportedPlatforms restricts a template to specific GOOS values
+	// ("linux", "darwin", "windows"). Empty means all platforms.
+	// Templates only.
+	SupportedPlatforms []string `json:"supportedPlatforms,omitempty"`
+	Entrypoint         string   `json:"entrypoint"`
 }
 
 // Validate checks that a manifest has the fields required for its kind.

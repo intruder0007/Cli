@@ -12,6 +12,12 @@ for how to add an entry.
 
 ### Added
 
+- Second template, `templates/node-rest-api` — a Node.js HTTP API
+  service (zero npm dependencies), the first real proof of
+  "cross-language." `node`/`http-api` are now real, selectable wizard
+  options. See ADR-0009.
+- `Manifest.SupportedPlatforms` (templates only) — `core/registry`
+  filters template resolution by the current platform.
 - Manifest validation (`sdk.Manifest.Validate()`) — required fields per
   kind, checked both on discovery and by plugins validating their own
   manifest. `bootstrap plugins list` now reports skipped/invalid

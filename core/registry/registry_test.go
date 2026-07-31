@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
 
 func writePlugin(t *testing.T, dir, name, manifestJSON string) {
@@ -93,6 +95,37 @@ func TestResolveTemplateFindsMatch(t *testing.T) {
 	}
 	if p.Manifest.Name != "t" {
 		t.Errorf("got %q, want %q", p.Manifest.Name, "t")
+	}
+}
+
+func TestSupportsPlatform(t *testing.T) {
+	empty := sdk.Manifest{}
+	if !supportsPlatform(empty, "linux") {
+		t.Error("empty SupportedPlatforms should mean all platforms are supported")
+	}
+
+	restricted := sdk.Manifest{SupportedPlatforms: []string{"linux", "darwin"}}
+	if !supportsPlatform(restricted, "linux") {
+		t.Error("linux should be supported")
+	}
+	if supportsPlatform(restricted, "windows") {
+		t.Error("windows should not be supported")
+	}
+}
+
+func TestResolveTemplateExcludesUnsupportedPlatform(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir, "t", `{
+  "protocolVersion": "1", "name": "t", "version": "0.1.0", "kind": "template",
+  "projectType": "backend-service", "language": "go", "framework": "rest-api",
+  "supportedPlatforms": ["plan9"],
+  "entrypoint": "./t"
+}`)
+	r := New(dir)
+	_, err := r.ResolveTemplate("backend-service", "go", "rest-api")
+	var notFound *TemplateNotFoundError
+	if !errors.As(err, &notFound) {
+		t.Errorf("a template restricted to plan9 should not resolve on the current platform, got err=%v", err)
 	}
 }
 
