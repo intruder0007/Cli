@@ -1,0 +1,11 @@
+go 1.22
+
+use (
+	./cli
+	./core
+	./sdk/go
+	./templates/go-rest-api
+	./plugins/builtin/git-init
+	./plugins/builtin/readme
+	./plugins/builtin/github-actions-ci
+)
