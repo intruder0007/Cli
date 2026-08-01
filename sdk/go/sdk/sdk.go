@@ -1,6 +1,13 @@
 // Package sdk implements the plugin side of the Cli plugin protocol:
 // subprocess + line-delimited JSON-RPC 2.0 over stdio. See
 // docs/architecture/plugin-protocol.md for the full wire spec.
+//
+// Stability: this package is a Stable public API (see
+// docs/architecture/api-compatibility.md and ADR-0013). Every exported
+// identifier — types, fields, function signatures, and constants — is a
+// contract. Breaking changes require the deprecation period and
+// versioning rules described there; additive changes (new functions,
+// new optional fields) are ordinary PRs.
 package sdk
 
 import (
