@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "description": "Cross-language developer bootstrap platform: generate new projects via a plugin-based CLI.",
+  "homepage": "https://github.com/intruder0007/Cli",
+  "license": "MIT",
+  "url": "https://github.com/intruder0007/Cli/releases/download/v0.2.0/cli_v0.2.0_windows_amd64.zip",
+  "hash": "e0aa396c5ea19b13bf1929e4d6b94d576366fe76cf1a32e870199db9ffbc732e",
+  "bin": "bootstrap.exe",
+  "checkver": {
+    "github": "https://github.com/intruder0007/Cli"
+  },
+  "autoupdate": {
+    "url": "https://github.com/intruder0007/Cli/releases/download/v$version/cli_v$version_windows_amd64.zip"
+  }
+}

@@ -22,11 +22,19 @@
 /cli/internal/embedded/assets/*
 !/cli/internal/embedded/assets/.gitkeep
 
+# Distribution wrapper local build/verification artifacts
+/distribution/npm/.bin/
+/distribution/npm/*.tgz
+/distribution/npm/node_modules/
+/distribution/cargo/target/
+/distribution/chocolatey/*.nupkg
+
 # Editors / OS
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+.claude/
 *.swp
 
 # Env / local secrets

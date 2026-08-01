@@ -1,0 +1,130 @@
+name: Distribution verify
+
+# Proves "clean machine install" for every distribution wrapper under
+# distribution/ against real, published release assets — one job per
+# ecosystem, each on a disposable runner, each ending in a real
+# `bootstrap version` invocation through that ecosystem's real install
+# path. Publishing is a separate, later, explicitly-confirmed step for
+# each ecosystem (npm publish / twine upload / cargo publish / choco
+# push need real credentials; Homebrew/Scoop/Winget need a PR to a
+# third-party repo) — this workflow only ever installs locally on the
+# runner, never publishes anywhere.
+on:
+  pull_request:
+    paths: ["distribution/**"]
+  push:
+    branches: [main]
+    paths: ["distribution/**"]
+  workflow_dispatch:
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Pack and install into a scratch prefix
+        run: |
+          set -euo pipefail
+          cd distribution/npm
+          npm pack --pack-destination /tmp
+          mkdir -p /tmp/npm-prefix
+          npm install --prefix /tmp/npm-prefix /tmp/bootstrap-cli-*.tgz
+      - name: Verify
+        run: /tmp/npm-prefix/node_modules/.bin/bootstrap version
+
+  pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install
+        run: pip install ./distribution/pypi
+      - name: Verify
+        run: bootstrap version
+
+  cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: cargo install --path distribution/cargo
+      - name: Verify
+        run: bootstrap version
+
+  homebrew:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install formula
+        run: brew install --formula distribution/homebrew/bootstrap.rb
+      - name: Formula test block
+        run: brew test bootstrap
+      - name: Verify
+        run: bootstrap version
+
+  scoop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Scoop
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          Invoke-RestMethod get.scoop.sh | Invoke-Expression
+      - name: Install manifest
+        shell: powershell
+        run: |
+          scoop install (Resolve-Path distribution\scoop\bootstrap.json)
+      - name: Verify
+        shell: powershell
+        run: bootstrap version
+
+  winget:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      # winget isn't guaranteed present/fully configured on every
+      # GitHub-hosted Windows runner image — skip gracefully rather
+      # than fail the workflow on an environment gap unrelated to the
+      # manifest itself, matching tests/integration's existing
+      # "skip if the tool isn't on PATH locally" pattern for npm.
+      - name: Check winget availability
+        id: check
+        shell: powershell
+        run: |
+          if (Get-Command winget -ErrorAction SilentlyContinue) {
+            "available=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "available=false" >> $env:GITHUB_OUTPUT
+          }
+      - name: Validate manifest
+        if: steps.check.outputs.available == 'true'
+        shell: powershell
+        run: winget validate distribution\winget\manifests\i\intruder0007\Cli\0.2.0
+      - name: Install manifest
+        if: steps.check.outputs.available == 'true'
+        shell: powershell
+        run: winget install --manifest distribution\winget\manifests\i\intruder0007\Cli\0.2.0 --accept-package-agreements --accept-source-agreements
+      - name: Verify
+        if: steps.check.outputs.available == 'true'
+        shell: powershell
+        run: bootstrap version
+
+  chocolatey:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pack
+        shell: powershell
+        run: choco pack distribution\chocolatey\bootstrap.nuspec --outputdirectory distribution\chocolatey
+      - name: Install
+        shell: powershell
+        run: choco install bootstrap-cli --source distribution\chocolatey -y
+      - name: Verify
+        shell: powershell
+        run: bootstrap version

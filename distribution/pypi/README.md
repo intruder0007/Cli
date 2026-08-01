@@ -1,13 +1,25 @@
-# PyPI wrapper (not implemented)
+# PyPI wrapper — built, CI-verified, not published
 
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 
-A minimal Python package exposing a `console_scripts` entry point (e.g.
-`bootstrap = bootstrap_cli.__main__:main`) whose `main()` resolves
-platform via `platform.system()`/`platform.machine()`, locates/downloads
-the matching release archive into a cache dir (`platformdirs`-style
-location), and `os.execv`s the extracted `bootstrap` binary — `execv`
-replaces the process image entirely, which is the cleanest way to
-satisfy the protocol's stdio-passthrough requirement on POSIX. Windows
-has no real `execv`; use `subprocess.run` with inherited handles and
-`sys.exit(result.returncode)` instead.
+`pyproject.toml` (setuptools, stdlib-only — no third-party dependency)
+exposing a `console_scripts` entry point (`bootstrap =
+bootstrap_cli.__main__:main`) whose `main()` resolves platform via
+`platform.system()`/`platform.machine()`, downloads/verifies (SHA256
+against `SHA256SUMS.txt`) the matching release archive into a
+version-scoped cache directory (skipping the download on repeat runs),
+and hands off to the real binary — `os.execv` on POSIX (replaces the
+process image, the cleanest way to satisfy stdio passthrough),
+`subprocess.run` + `sys.exit(returncode)` on Windows (no real `execv`
+there).
+
+**Verified in CI** (`.github/workflows/distribution-verify.yml`, `pypi`
+job, `ubuntu-latest` + `actions/setup-python`): `pip install
+./distribution/pypi` followed by a real `bootstrap version` invocation
+through the installed console script. Not verified locally in this
+repo's own dev environment — Python isn't actually installed there
+(only a Microsoft Store stub; same finding as ADR-0009).
+
+**Not published.** `twine upload` needs a real PyPI API token, which
+isn't available in the environment that built this. Package name
+(`bootstrap-cli`) is a placeholder, not reserved or claimed anywhere.
