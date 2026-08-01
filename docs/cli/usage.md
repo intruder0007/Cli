@@ -36,9 +36,15 @@ Six prompts, in order:
 
 The CLI then resolves the matching template plugin, generates the project,
 applies each selected capability in the order chosen, and prints a success
-screen with the files written and next steps (e.g. `cd my-project && go
+screen: a one-line summary (template used, file count, capabilities
+applied), the files written, and next steps (e.g. `cd my-project && go
 run .` or `cd my-project && npm start`). A failure prints an error screen
 with a recovery hint where one is known.
+
+Pass `--verbose` (or `-v`) to `bootstrap new` to print diagnostic
+logging — plugin spawn, handshake result, timing, file counts — to
+stderr as the run progresses. Useful when a run is slow or fails and the
+error screen's hint isn't enough context.
 
 ## Non-interactive
 
@@ -78,7 +84,12 @@ capabilities: [git-init, readme, github-actions-ci]
 - `bootstrap config get theme` / `bootstrap config set theme <name>` —
   read or explicitly set the persisted theme, without running the
   wizard.
-- `bootstrap version` — prints the CLI version.
+- `bootstrap doctor` — runs local health checks (plugin directory
+  resolution, manifest validity) and prints a pass/fail summary with a
+  recovery hint. Spawns no plugin subprocess — discovery only.
+- `bootstrap version` — prints the CLI version, Go runtime version, and
+  OS/arch (e.g. `bootstrap version v0.2.0 (go1.22.5, windows/amd64)`) —
+  useful context to include in a bug report.
 - `bootstrap help` / `bootstrap <command> -h` — top-level and
   per-command help.
 

@@ -12,6 +12,24 @@ for how to add an entry.
 
 ### Added
 
+- `core/diag` — a minimal `Logger` seam shared by `core/engine` and
+  `core/plugin`; nil-safe (defaults to a no-op) and opt-in.
+- `bootstrap new --verbose`/`-v` — prints diagnostic logging (plugin
+  spawn, handshake result, timing, file counts) to stderr as a run
+  progresses.
+- `bootstrap doctor` — local health check: verifies plugin directories
+  resolve and every discovered manifest is valid, with a pass/fail
+  summary and recovery hint.
+- `bootstrap version` now prints the Go runtime version and OS/arch
+  alongside the CLI's semver string.
+- Success screen now shows a one-line project summary (template used,
+  file count, capabilities applied) via new `engine.Summary.Template`/
+  `CapabilitiesApplied` fields.
+
+See ADR-0011.
+
+### Added
+
 - Distribution architecture design (ADR-0010): the wrapper contract
   every future npm/PyPI/Cargo/Homebrew/Scoop/Winget/Chocolatey package
   must follow, plus scaffolded `distribution/<ecosystem>/` design notes.

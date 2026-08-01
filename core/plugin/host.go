@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/intruder0007/Cli/core/diag"
 	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
 
@@ -24,11 +25,21 @@ type Host struct {
 	// generate, apply) waits for a response before the plugin is
 	// considered hung and killed. Defaults to 30s if zero.
 	CallTimeout time.Duration
+	// Logger receives diagnostic lines (spawn, handshake, timing). Nil
+	// means silent — see logger().
+	Logger diag.Logger
 }
 
 // NewHost returns a Host with sane defaults.
 func NewHost() *Host {
 	return &Host{ShutdownTimeout: 5 * time.Second, CallTimeout: defaultCallTimeout}
+}
+
+func (h *Host) logger() diag.Logger {
+	if h.Logger != nil {
+		return h.Logger
+	}
+	return diag.NoopLogger{}
 }
 
 func (h *Host) callTimeout() time.Duration {
@@ -227,19 +238,29 @@ func (h *Host) initialize(s *session, expectedName, expectedProtocolVersion stri
 // manifest the registry discovered on disk, for the identity/protocol
 // cross-check in initialize.
 func (h *Host) Generate(entrypointPath, expectedName, expectedProtocolVersion string, req sdk.GenerateRequest) (sdk.GenerateResponse, error) {
+	log := h.logger()
+	log.Logf("spawning template plugin %q at %s", expectedName, entrypointPath)
+	start := time.Now()
+
 	var out sdk.GenerateResponse
 	s, err := h.start(entrypointPath)
 	if err != nil {
+		log.Logf("%q: failed to start: %v", expectedName, err)
 		return out, err
 	}
 	defer h.finish(s)
 
 	if err := h.initialize(s, expectedName, expectedProtocolVersion); err != nil {
+		log.Logf("%q: initialize failed: %v", expectedName, err)
 		return out, err
 	}
+	log.Logf("%q: initialize ok", expectedName)
+
 	if err := s.call(h.callTimeout(), "plugin.generate", req, &out); err != nil {
+		log.Logf("%q: generate failed: %v", expectedName, err)
 		return out, err
 	}
+	log.Logf("%q: generate ok (%d files, %s)", expectedName, len(out.FilesWritten), time.Since(start).Round(time.Millisecond))
 	return out, nil
 }
 
@@ -248,18 +269,28 @@ func (h *Host) Generate(entrypointPath, expectedName, expectedProtocolVersion st
 // manifest the registry discovered on disk, for the identity/protocol
 // cross-check in initialize.
 func (h *Host) Apply(entrypointPath, expectedName, expectedProtocolVersion string, req sdk.ApplyRequest) (sdk.ApplyResponse, error) {
+	log := h.logger()
+	log.Logf("spawning capability plugin %q at %s", expectedName, entrypointPath)
+	start := time.Now()
+
 	var out sdk.ApplyResponse
 	s, err := h.start(entrypointPath)
 	if err != nil {
+		log.Logf("%q: failed to start: %v", expectedName, err)
 		return out, err
 	}
 	defer h.finish(s)
 
 	if err := h.initialize(s, expectedName, expectedProtocolVersion); err != nil {
+		log.Logf("%q: initialize failed: %v", expectedName, err)
 		return out, err
 	}
+	log.Logf("%q: initialize ok", expectedName)
+
 	if err := s.call(h.callTimeout(), "plugin.apply", req, &out); err != nil {
+		log.Logf("%q: apply failed: %v", expectedName, err)
 		return out, err
 	}
+	log.Logf("%q: apply ok (%d written, %d modified, %s)", expectedName, len(out.FilesWritten), len(out.FilesModified), time.Since(start).Round(time.Millisecond))
 	return out, nil
 }

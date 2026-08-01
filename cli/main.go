@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/intruder0007/Cli/cli/internal/prompt"
 	"github.com/intruder0007/Cli/core/config"
+	"github.com/intruder0007/Cli/core/diag"
 	"github.com/intruder0007/Cli/core/engine"
 	"github.com/intruder0007/Cli/core/plugin"
 	"github.com/intruder0007/Cli/core/registry"
@@ -37,8 +39,10 @@ func main() {
 		cmdPlugins(os.Args[2:])
 	case "config":
 		cmdConfig(os.Args[2:])
+	case "doctor":
+		cmdDoctor(os.Args[2:])
 	case "version":
-		fmt.Println("bootstrap version " + version)
+		fmt.Printf("bootstrap version %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	case "-h", "--help", "help":
 		fmt.Println(prompt.HelpText)
 	default:
@@ -136,7 +140,11 @@ func extractProjectName(args []string, boolFlags map[string]bool) (string, []str
 }
 
 func cmdNew(args []string) {
-	projectName, rest := extractProjectName(args, map[string]bool{"-no-color": true, "--no-color": true})
+	projectName, rest := extractProjectName(args, map[string]bool{
+		"-no-color": true, "--no-color": true,
+		"-verbose": true, "--verbose": true,
+		"-v": true, "--v": true,
+	})
 
 	fs := flag.NewFlagSet("new", flag.ExitOnError)
 	fs.Usage = func() {
@@ -153,6 +161,8 @@ interactive wizard. Flags below make it non-interactive.`)
 	caps := fs.String("capabilities", "", "comma-separated capability ids")
 	answersFile := fs.String("answers", "", "path to an answers file")
 	noColor := fs.Bool("no-color", false, "disable color output")
+	verbose := fs.Bool("verbose", false, "print diagnostic logging (plugin spawn/timing) to stderr")
+	fs.BoolVar(verbose, "v", false, "shorthand for -verbose")
 	fs.Parse(rest)
 
 	noColorEnv := os.Getenv("NO_COLOR") != ""
@@ -205,8 +215,16 @@ interactive wizard. Flags below make it non-interactive.`)
 		os.Exit(1)
 	}
 
+	var logger diag.Logger = diag.NoopLogger{}
+	if *verbose {
+		logger = diag.WriterLogger{W: os.Stderr}
+	}
+
 	reg := registry.New(pluginDirs()...)
-	eng := engine.New(reg, plugin.NewHost())
+	host := plugin.NewHost()
+	host.Logger = logger
+	eng := engine.New(reg, host)
+	eng.Logger = logger
 
 	summary, err := eng.Run(targetDir, a)
 	if err != nil {
@@ -214,7 +232,7 @@ interactive wizard. Flags below make it non-interactive.`)
 		os.Exit(1)
 	}
 
-	prompt.SuccessScreen(os.Stdout, t, a.ProjectName, summary.FilesWritten, summary.NextSteps)
+	prompt.SuccessScreen(os.Stdout, t, a.ProjectName, summary)
 }
 
 func cmdPlugins(args []string) {
@@ -245,6 +263,64 @@ func cmdPlugins(args []string) {
 	for _, p := range found {
 		fmt.Printf("%s\t%s\t%s\t%s\n", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version, p.Manifest.DisplayName)
 	}
+}
+
+// cmdDoctor runs a small set of local health checks — plugin directory
+// resolution and manifest validity — and reports a pass/fail summary
+// with actionable hints. It never spawns any plugin subprocess (that
+// happens only during `new`); it only exercises discovery, the same
+// fail-fast surface `plugins list` uses.
+func cmdDoctor(args []string) {
+	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: bootstrap doctor") }
+	fs.Parse(args)
+
+	t := prompt.GetTheme("default", os.Getenv("NO_COLOR") != "")
+	ok := true
+
+	dirs := pluginDirs()
+	fmt.Println(t.Header("Plugin directories:"))
+	for _, d := range dirs {
+		abs, err := filepath.Abs(d)
+		if err != nil {
+			abs = d
+		}
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			fmt.Println(t.Success("  " + abs))
+		} else {
+			fmt.Println(t.Dim("  " + abs + " (not found, skipped)"))
+		}
+	}
+
+	reg := registry.New(dirs...)
+	found, issues, err := reg.DiscoverWithIssues()
+	if err != nil {
+		fmt.Println(t.Failure("discovery failed: " + err.Error()))
+		os.Exit(1)
+	}
+
+	fmt.Println()
+	fmt.Println(t.Header("Plugins:"))
+	if len(found) == 0 {
+		fmt.Println(t.Dim("  none discovered"))
+		ok = false
+	}
+	for _, p := range found {
+		fmt.Println(t.Success(fmt.Sprintf("  %s (%s) v%s", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version)))
+	}
+	for _, issue := range issues {
+		fmt.Println(t.Failure(fmt.Sprintf("  %s: %v", issue.Path, issue.Err)))
+		ok = false
+	}
+
+	fmt.Println()
+	if ok {
+		fmt.Println(t.Success("doctor: all checks passed"))
+		return
+	}
+	fmt.Println(t.Failure("doctor: found issues"))
+	fmt.Println(t.Dim("  hint: check plugin.json files against docs/plugins/authoring.md / docs/templates/authoring.md, or set CLI_PLUGIN_DIRS to point at the right directories."))
+	os.Exit(1)
 }
 
 func configUsage() {
