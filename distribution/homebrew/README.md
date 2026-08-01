@@ -1,14 +1,28 @@
-# Homebrew formula (not implemented)
+# Homebrew formula — built, CI-verified, not published
 
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
-Simplest of the eight — no wrapper process needed at all.
+Simplest of the 8 — no wrapper process needed at all.
 
-A standard Homebrew formula with per-`on_macos`/`on_linux` +
-per-`Hardware::CPU.arm?` `url`/`sha256` blocks pointing at the existing
-`cli_<version>_<os>_<arch>.tar.gz` release assets and their
-`SHA256SUMS.txt` checksums (Homebrew fetches+verifies natively — no
-custom download code needed), with `install` staging the **whole**
-extracted directory into `libexec` and symlinking only `bootstrap` into
-`bin` (a bare `bin.install "bootstrap"` would strand the sibling
-`templates/`/`plugins/` — see the protocol doc's "Why the whole
-archive").
+`bootstrap.rb`: per-`on_macos`/`on_linux` + per-`Hardware::CPU.arm?`
+`url`/`sha256` blocks pointing at the real `v0.2.0` release assets and
+their real checksums (from the published `SHA256SUMS.txt`). `install`
+stages the **whole** extracted directory into `libexec` and symlinks
+only `bootstrap` into `bin` — not the simplified `bin.install
+"bootstrap"` ADR-0012's embedded-plugin fallback will eventually allow,
+since `v0.2.0` predates that feature and still needs its sibling
+`templates/`/`plugins/builtin/` directories intact (see the formula's
+own comment, and ADR-0012's "don't simplify the archive without a
+measurable need" decision). Includes a `test do` block that runs
+`bootstrap version` and `bootstrap doctor`.
+
+**Verified in CI** (`.github/workflows/distribution-verify.yml`,
+`homebrew` job, `macos-latest`): `brew install --formula
+distribution/homebrew/bootstrap.rb` followed by `brew test bootstrap`
+and a real `bootstrap version` invocation. Not verified locally — this
+repo's dev environment is Windows, no Homebrew there.
+
+**Not published.** Submitting to `homebrew-core` (strict acceptance
+criteria) or creating a new public tap under the maintainer's account
+both mean opening a PR against a real, third-party or newly-public repo
+— a visible, hard-to-reverse action requiring explicit go-ahead in a
+separate step, not done here.

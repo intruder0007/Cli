@@ -4,19 +4,25 @@ Per-ecosystem thin launchers so users can install `bootstrap` through
 their existing tooling. See
 [ADR-0010](../docs/architecture/adr/0010-distribution-architecture.md)
 and the [wrapper protocol](../docs/architecture/distribution-protocol.md)
-before implementing any of these — every wrapper must follow the same
-contract (resolve platform → locate/fetch the release archive as a
-whole → exec `bootstrap` with stdio/argv/exit-code passed through
-unmodified). None of these are implemented yet; each subdirectory is a
-design note for whoever picks it up.
+— every wrapper follows the same contract (resolve platform →
+locate/fetch the release archive as a whole → exec `bootstrap` with
+stdio/argv/exit-code passed through unmodified).
+
+7 of 8 are now built and verified (locally and/or in
+`.github/workflows/distribution-verify.yml`, one job per ecosystem, each
+against real published `v0.2.0` release assets) — **none are published**
+to any real registry. Publishing needs either a real credential (npm,
+PyPI, Cargo, Chocolatey) or a PR to a third-party-owned repo
+(Homebrew, Scoop, Winget) — both are separate, explicitly-confirmed
+future steps per ecosystem, not bundled into building/verifying.
 
 | Ecosystem | Directory | Status |
 |---|---|---|
-| npm | [`npm/`](npm/) | not started |
-| PyPI | [`pypi/`](pypi/) | not started |
-| Cargo | [`cargo/`](cargo/) | not started |
+| npm | [`npm/`](npm/) | built, verified locally + CI |
+| PyPI | [`pypi/`](pypi/) | built, CI-verified |
+| Cargo | [`cargo/`](cargo/) | built, CI-verified (lowest priority — see its README) |
 | Go | [`go/`](go/) | solved (ADR-0012) |
-| Homebrew | [`homebrew/`](homebrew/) | not started |
-| Scoop | [`scoop/`](scoop/) | not started |
-| Winget | [`winget/`](winget/) | not started |
-| Chocolatey | [`chocolatey/`](chocolatey/) | not started |
+| Homebrew | [`homebrew/`](homebrew/) | built, CI-verified |
+| Scoop | [`scoop/`](scoop/) | built, CI-verified |
+| Winget | [`winget/`](winget/) | built, verified locally + CI |
+| Chocolatey | [`chocolatey/`](chocolatey/) | built, CI-verified |

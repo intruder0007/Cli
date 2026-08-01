@@ -17,6 +17,14 @@ for how to add an entry.
 
 ### Added
 
+- Distribution wrappers for 7 of 8 planned ecosystems (npm, PyPI,
+  Cargo, Homebrew, Scoop, Winget, Chocolatey) under `distribution/` —
+  built and verified (locally and/or via new
+  `.github/workflows/distribution-verify.yml`, one job per ecosystem)
+  against real published `v0.2.0` release assets. None are published to
+  any real registry — that needs either a credential or a PR to a
+  third-party repo, both separate, explicitly-confirmed future steps.
+  See each ecosystem's `distribution/<name>/README.md`.
 - Universal install architecture (ADR-0012): the `cli` binary now embeds
   the V1 plugin set at build time and self-extracts it to a
   version-scoped cache directory whenever no sibling

@@ -1,0 +1,14 @@
+# Created for github.com/intruder0007/Cli. See docs/architecture/distribution-protocol.md.
+PackageIdentifier: intruder0007.Cli
+PackageVersion: 0.2.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: cli_v0.2.0_windows_amd64/bootstrap.exe
+    PortableCommandAlias: bootstrap
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/intruder0007/Cli/releases/download/v0.2.0/cli_v0.2.0_windows_amd64.zip
+    InstallerSha256: E0AA396C5EA19B13BF1929E4D6B94D576366FE76CF1A32E870199DB9FFBC732E
+ManifestType: installer
+ManifestVersion: 1.6.0
