@@ -14,7 +14,7 @@ exactly, per the protocol.
 
 **Verified**: `npm pack` + `npm install --prefix <scratch>` against a
 real, published release — the postinstall script really downloaded and
-checksum-verified `v0.2.0`'s Windows archive, and the installed
+checksum-verified `v0.3.0`'s Windows archive, and the installed
 `bootstrap` command ran correctly through the shim (`bootstrap version`
 printed the right output).
 

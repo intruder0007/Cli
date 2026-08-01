@@ -118,7 +118,7 @@ jobs:
       - name: Validate manifest
         if: steps.check.outputs.available == 'true'
         shell: powershell
-        run: winget validate distribution\winget\manifests\i\intruder0007\Cli\0.2.0
+        run: winget validate distribution\winget\manifests\i\intruder0007\Cli\0.3.0
       # Installing from a local manifest is an opt-in winget feature —
       # off by default, must be explicitly enabled first.
       - name: Enable local manifest installs
@@ -133,7 +133,7 @@ jobs:
         if: steps.check.outputs.available == 'true'
         shell: powershell
         run: |
-          winget install --manifest distribution\winget\manifests\i\intruder0007\Cli\0.2.0 --accept-package-agreements --accept-source-agreements
+          winget install --manifest distribution\winget\manifests\i\intruder0007\Cli\0.3.0 --accept-package-agreements --accept-source-agreements
           Add-Content -Path $env:GITHUB_PATH -Value "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
       - name: Verify
         if: steps.check.outputs.available == 'true'

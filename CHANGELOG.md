@@ -15,6 +15,13 @@ for how to add an entry.
 
 ## [Unreleased]
 
+### Changed
+
+- All 7 distribution wrappers repointed at the real `v0.3.0` release
+  assets (package versions, download URLs, `extract_dir`, and
+  checksums from the published `SHA256SUMS.txt`), re-verified against
+  them in `distribution-verify.yml` CI. None are published yet.
+
 ## [0.3.0] - 2026-08-02
 
 ### Added

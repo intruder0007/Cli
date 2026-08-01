@@ -10,7 +10,7 @@ stdio/argv/exit-code passed through unmodified).
 
 7 of 8 are now built and verified (locally and/or in
 `.github/workflows/distribution-verify.yml`, one job per ecosystem, each
-against real published `v0.2.0` release assets) — **none are published**
+against real published `v0.3.0` release assets) — **none are published**
 to any real registry. Publishing needs either a real credential (npm,
 PyPI, Cargo, Chocolatey) or a PR to a third-party-owned repo
 (Homebrew, Scoop, Winget) — both are separate, explicitly-confirmed

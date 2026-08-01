@@ -4,16 +4,16 @@ Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 Simplest of the 8 — no wrapper process needed at all.
 
 `bootstrap.rb`: per-`on_macos`/`on_linux` + per-`Hardware::CPU.arm?`
-`url`/`sha256` blocks pointing at the real `v0.2.0` release assets and
+`url`/`sha256` blocks pointing at the real `v0.3.0` release assets and
 their real checksums (from the published `SHA256SUMS.txt`). `install`
 stages the **whole** extracted directory into `libexec` and symlinks
-only `bootstrap` into `bin` — not the simplified `bin.install
-"bootstrap"` ADR-0012's embedded-plugin fallback will eventually allow,
-since `v0.2.0` predates that feature and still needs its sibling
-`templates/`/`plugins/builtin/` directories intact (see the formula's
-own comment, and ADR-0012's "don't simplify the archive without a
-measurable need" decision). Includes a `test do` block that runs
-`bootstrap version` and `bootstrap doctor`.
+only `bootstrap` into `bin` — the simplified `bin.install "bootstrap"`
+that ADR-0012's embedded-plugin fallback eventually allows isn't used
+because `v0.3.0` ships the sibling `templates/`/`plugins/builtin/`
+directories anyway and the whole-archive pattern stays the conservative
+choice (see the formula's own comment, and ADR-0012's "don't simplify
+the archive without a measurable need" decision). Includes a `test do`
+block that runs `bootstrap version` and `bootstrap doctor`.
 
 **Verified in CI** (`.github/workflows/distribution-verify.yml`,
 `homebrew` job, `macos-latest`): `brew install --formula

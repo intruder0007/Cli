@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>bootstrap-cli</id>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <title>Cli (bootstrap)</title>
     <authors>intruder0007</authors>
     <projectUrl>https://github.com/intruder0007/Cli</projectUrl>
