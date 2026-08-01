@@ -24,6 +24,15 @@ for how to add an entry.
   stages (Experimental → Stable → Deprecated → Removed), and semver
   rules binding releases to surfaces. `sdk/go`'s package doc now
   declares its Stable status.
+- SDK foundation (ADR-0014 + `sdk-architecture.md`): the
+  language-neutral SDK specification every future SDK implements —
+  four abstractions (Manifest, Plugin, Requests/Responses, Serve),
+  exact protocol bindings, package layout, transport rules,
+  compatibility strategy (SDKs are additive; `sdk/go` is the
+  reference implementation), and version negotiation (none today,
+  multi-version sketched). Design notes added under
+  `sdk/{node,python,rust,future}/`; no SDK beyond `sdk/go` is
+  implemented, per scope.
 
 ### Changed
 

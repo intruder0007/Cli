@@ -16,8 +16,13 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   stays the only transport unless a concrete need forces revisiting that
   ADR.
 - **Non-Go plugin SDKs.** The wire protocol is language-agnostic by
-  design, but only `sdk/go` ships in V1. A Python/Node/Rust SDK is
-  additive, not a breaking change.
+  design, and the SDK family's language-neutral spec now exists
+  (`docs/architecture/sdk-architecture.md`, ADR-0014) with design
+  notes under `sdk/{node,python,rust,future}/` — but only `sdk/go`
+  ships. Implementing one is additive, not a breaking change; each
+  needs an implementation phase with CI-verified clean-machine
+  round-trip (the same bar `distribution-verify.yml` applies to
+  wrappers).
 - **Richer CLI theming.** V1 ships exactly two themes (`default`,
   `minimal`); a theme is just a set of rendering choices in
   `cli/internal/prompt`, so more can be added without touching `core`.
