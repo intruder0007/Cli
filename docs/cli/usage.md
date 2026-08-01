@@ -81,6 +81,13 @@ capabilities: [git-init, readme, github-actions-ci]
 - `bootstrap plugins list` — lists discovered template and capability
   plugins (name, kind, version) from the local `templates/`/`plugins/`
   directories.
+- `bootstrap plugins validate <plugin-dir>` — checks a plugin directory
+  before shipping it: `plugin.json` must parse and pass
+  `Manifest.Validate()`, and the entrypoint binary must spawn and pass
+  the `plugin.initialize` identity/protocol cross-check against the
+  on-disk manifest (the same fail-fast surface `new` uses, ADR-0008 —
+  a stale or swapped binary fails here). Exits 0 when valid, 1 when
+  not. The pre-release check for plugin/template authors.
 - `bootstrap config get theme` / `bootstrap config set theme <name>` —
   read or explicitly set the persisted theme, without running the
   wizard.

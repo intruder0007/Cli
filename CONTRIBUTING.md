@@ -57,6 +57,9 @@ implement `sdk.TemplatePlugin` (a `Generate` method) and/or
 `sdk.Serve(yourPlugin)`, add a `plugin.json` manifest, and place it under
 `templates/<name>/` or `plugins/builtin/<name>/`. No core code changes
 are required — that's the whole point of plugin-first extensibility.
+Before opening the PR, run `bootstrap plugins validate <dir>` on each
+new plugin directory as a pre-release sanity check (manifest validity +
+binary identity/protocol handshake).
 
 ## Releases
 

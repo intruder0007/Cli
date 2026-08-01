@@ -47,6 +47,21 @@ Place the built binary and manifest under `plugins/builtin/my-capability/`
 scan. No changes to `core` are required — this is the extensibility
 contract in practice.
 
+## Validate before shipping
+
+Before packaging a plugin for release (or opening a PR that adds one),
+run the pre-release check:
+
+```sh
+bootstrap plugins validate plugins/builtin/my-capability
+```
+
+This proves the directory's `plugin.json` parses and passes
+`Manifest.Validate()`, and that the entrypoint binary actually spawns
+and reports the same identity/protocol version as the manifest at the
+`plugin.initialize` handshake — catching a stale or swapped binary
+before anyone installs it. Exit 0 means valid.
+
 ## Non-Go plugins
 
 The transport (subprocess + line-delimited JSON-RPC 2.0 over stdio) is
