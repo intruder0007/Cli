@@ -125,10 +125,16 @@ jobs:
         if: steps.check.outputs.available == 'true'
         shell: powershell
         run: winget settings --enable LocalManifestFiles
+      # Like Scoop, winget's portable-install PATH entry
+      # (%LOCALAPPDATA%\Microsoft\WinGet\Links) only takes effect within
+      # this step's own process — persist it via $GITHUB_PATH so the
+      # next step (a fresh shell) can see it too.
       - name: Install manifest
         if: steps.check.outputs.available == 'true'
         shell: powershell
-        run: winget install --manifest distribution\winget\manifests\i\intruder0007\Cli\0.2.0 --accept-package-agreements --accept-source-agreements
+        run: |
+          winget install --manifest distribution\winget\manifests\i\intruder0007\Cli\0.2.0 --accept-package-agreements --accept-source-agreements
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
       - name: Verify
         if: steps.check.outputs.available == 'true'
         shell: powershell
