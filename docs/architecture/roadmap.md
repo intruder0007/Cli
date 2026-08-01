@@ -30,6 +30,11 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   ordering, but there's still no detection of two capabilities that
   touch the same file in incompatible ways — ordering, not conflict
   resolution.
+- **Capability-to-capability visibility.** A capability plugin's
+  `plugin.apply` request doesn't include which *other* capabilities were
+  selected — only `dependsOn` ordering exists, not awareness. No V1
+  capability needs this yet; would need a `plugin-protocol.md` change
+  (and likely its own ADR) if a concrete need arises.
 - **Workspace/monorepo project generation.** V1 generates exactly one
   project per run.
 - **Localization/i18n of the wizard.** English only in V1.

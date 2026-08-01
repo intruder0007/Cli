@@ -105,9 +105,13 @@ Response: `{ "filesWritten": ["go.mod", "main.go", ...], "nextSteps": ["cd new-p
 
 ### `plugin.apply` (capabilities only)
 
-Request: same shape as `plugin.generate`, plus the capability sees the
-full `answers` map (including which other capabilities were selected, for
-ordering-aware plugins).
+Request: same shape as `plugin.generate` — `targetDir`, `projectName`,
+and `answers` (`theme`/`projectType`/`language`/`framework`). The
+`answers` map does **not** include which other capabilities were
+selected; a capability plugin that needs to react to *another*
+capability's presence has no way to today. `dependsOn` (above) only
+controls execution order, not visibility. This is a real gap, not yet
+needed by any V1 capability — see `roadmap.md`.
 
 Response: `{ "filesWritten": [...], "filesModified": [...], "nextSteps": [...] }`
 
@@ -118,9 +122,10 @@ process to exit (with a timeout, after which it is killed).
 
 ## Authoring a plugin
 
-Go authors use `sdk/go`'s `sdk.Serve(plugin sdk.Plugin)`, which implements
-this transport and dispatches to a small `Generate`/`Apply` interface — see
-[docs/plugins/authoring.md](../plugins/authoring.md) and
+Go authors use `sdk/go`'s `sdk.Serve(yourPlugin)`, which implements this
+transport and dispatches to whichever of `sdk.TemplatePlugin`
+(`Generate`) and `sdk.CapabilityPlugin` (`Apply`) your type implements —
+see [docs/plugins/authoring.md](../plugins/authoring.md) and
 [docs/templates/authoring.md](../templates/authoring.md). Non-Go SDKs are
 not built in V1, but any language can implement this protocol directly
 from this document.

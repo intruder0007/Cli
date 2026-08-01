@@ -57,3 +57,7 @@ jobs:
               (cd "$m" && go test ./...)
             fi
           done
+
+      # CONTRIBUTING.md documents this check; it must actually run.
+      - name: Lint docs (markdownlint)
+        run: npx --yes markdownlint-cli 'docs/**/*.md' 'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'CODE_OF_CONDUCT.md'
