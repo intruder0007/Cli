@@ -148,6 +148,20 @@ func loadPluginDir(pluginDir string) (plugin Plugin, issue *DiscoveryIssue, ok b
 	}, nil, true
 }
 
+// LoadPluginDir parses and validates a single plugin directory (not a
+// scan): pluginDir/plugin.json must parse and pass Validate(), and the
+// entrypoint is resolved the same way discovery would. ok is false when
+// pluginDir isn't a plugin directory at all (no plugin.json) — same
+// semantics as discovery's skip. This is the single-directory version
+// of the discovery path, used by `bootstrap plugins validate <dir>`.
+func LoadPluginDir(pluginDir string) (plugin Plugin, ok bool, err error) {
+	p, issue, ok := loadPluginDir(pluginDir)
+	if issue != nil {
+		return Plugin{}, false, issue
+	}
+	return p, ok, nil
+}
+
 // resolveEntrypoint joins pluginDir and entrypoint, and on platforms
 // (Windows) where exec.Command requires an explicit executable
 // extension, falls back to entrypoint+".exe" if the extensionless path

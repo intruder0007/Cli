@@ -17,6 +17,7 @@ import (
 	"github.com/intruder0007/Cli/core/engine"
 	"github.com/intruder0007/Cli/core/plugin"
 	"github.com/intruder0007/Cli/core/registry"
+	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
 
 // version is overridden at build time via:
@@ -316,16 +317,30 @@ interactive wizard. Flags below make it non-interactive.`)
 }
 
 func cmdPlugins(args []string) {
-	fs := flag.NewFlagSet("plugins", flag.ExitOnError)
-	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: bootstrap plugins list")
-	}
-	fs.Parse(args)
-
-	if fs.NArg() == 0 || fs.Arg(0) != "list" {
-		fs.Usage()
+	if len(args) == 0 {
+		pluginsUsage()
 		os.Exit(1)
 	}
+	switch args[0] {
+	case "list":
+		cmdPluginsList(args[1:])
+	case "validate":
+		cmdPluginsValidate(args[1:])
+	default:
+		pluginsUsage()
+		os.Exit(1)
+	}
+}
+
+func pluginsUsage() {
+	fmt.Fprintln(os.Stderr, `usage: bootstrap plugins list
+       bootstrap plugins validate <plugin-dir>`)
+}
+
+func cmdPluginsList(args []string) {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: bootstrap plugins list") }
+	fs.Parse(args)
 
 	reg := registry.New(pluginDirs()...)
 	found, issues, err := reg.DiscoverWithIssues()
@@ -343,6 +358,44 @@ func cmdPlugins(args []string) {
 	for _, p := range found {
 		fmt.Printf("%s\t%s\t%s\t%s\n", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version, p.Manifest.DisplayName)
 	}
+}
+
+// cmdPluginsValidate checks a single plugin directory before release:
+// its plugin.json must parse and pass Manifest.Validate(), and its
+// entrypoint binary must be spawnable and pass the plugin.initialize
+// identity/protocol cross-check against the on-disk manifest (a stale
+// or swapped binary fails here, the same way it would during `new`).
+// Exits 0 on success, 1 on any failure.
+func cmdPluginsValidate(args []string) {
+	fs := flag.NewFlagSet("validate", flag.ExitOnError)
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: bootstrap plugins validate <plugin-dir>") }
+	fs.Parse(args)
+
+	if fs.NArg() != 1 {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	t := prompt.GetTheme("default", os.Getenv("NO_COLOR") != "")
+	dir := fs.Arg(0)
+
+	p, ok, err := registry.LoadPluginDir(dir)
+	if err != nil {
+		prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("invalid plugin in %s: %w", dir, err))
+		os.Exit(1)
+	}
+	if !ok {
+		fmt.Fprintf(os.Stderr, "no plugin.json found in %s\n", dir)
+		os.Exit(1)
+	}
+
+	host := plugin.NewHost()
+	if err := host.Validate(p.EntrypointPath, p.Manifest.Name, sdk.ProtocolVersion); err != nil {
+		prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("plugin %q failed validation: %w", p.Manifest.Name, err))
+		os.Exit(1)
+	}
+
+	fmt.Println(t.Success(fmt.Sprintf("plugin %s (%s) v%s: valid", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version)))
 }
 
 // printEmbeddedStatus reports whether this binary has embedded plugin

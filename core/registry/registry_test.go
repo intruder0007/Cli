@@ -139,3 +139,51 @@ func TestDiscoverMissingDirIsNotAnError(t *testing.T) {
 		t.Errorf("got %d plugins from a missing directory, want 0", len(plugins))
 	}
 }
+
+func TestLoadPluginDirValid(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir, "t", validTemplateJSON)
+	p, ok, err := LoadPluginDir(filepath.Join(dir, "t"))
+	if err != nil {
+		t.Fatalf("LoadPluginDir: %v", err)
+	}
+	if !ok {
+		t.Fatal("LoadPluginDir: ok=false for a valid plugin directory")
+	}
+	if p.Manifest.Name != "t" || p.Manifest.Kind != "template" {
+		t.Errorf("got manifest %+v, want name=t kind=template", p.Manifest)
+	}
+	if p.EntrypointPath != filepath.Join(dir, "t", "t") {
+		t.Errorf("EntrypointPath = %q, want %q", p.EntrypointPath, filepath.Join(dir, "t", "t"))
+	}
+}
+
+func TestLoadPluginDirInvalidManifestIsTyped(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir, "bad-fields", missingFieldsJSON)
+	_, ok, err := LoadPluginDir(filepath.Join(dir, "bad-fields"))
+	if err == nil {
+		t.Fatal("LoadPluginDir on an invalid manifest: want error, got nil")
+	}
+	if ok {
+		t.Fatal("LoadPluginDir: ok=true for an invalid manifest")
+	}
+	var issue *DiscoveryIssue
+	if !errors.As(err, &issue) {
+		t.Errorf("got err=%v (%T), want *DiscoveryIssue (the same shape discovery reports)", err, err)
+	}
+}
+
+func TestLoadPluginDirNotAPluginDir(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "empty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, ok, err := LoadPluginDir(filepath.Join(dir, "empty"))
+	if err != nil {
+		t.Errorf("LoadPluginDir on a dir without plugin.json: want no error, got %v", err)
+	}
+	if ok {
+		t.Error("LoadPluginDir: ok=true for a directory with no plugin.json")
+	}
+}

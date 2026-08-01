@@ -233,6 +233,33 @@ func (h *Host) initialize(s *session, expectedName, expectedProtocolVersion stri
 	return nil
 }
 
+// Validate proves a plugin directory's binary is consistent with its
+// manifest without generating anything: it spawns the entrypoint,
+// completes the plugin.initialize handshake, and cross-checks the
+// running process's self-reported name and protocol version against
+// expectedName/expectedProtocolVersion (from the on-disk manifest).
+// This is the same fail-fast surface Generate/Apply use (ADR-0008),
+// exposed standalone for `bootstrap plugins validate <dir>` so an
+// author can check an extension before shipping it.
+func (h *Host) Validate(entrypointPath, expectedName, expectedProtocolVersion string) error {
+	log := h.logger()
+	log.Logf("validating plugin %q at %s", expectedName, entrypointPath)
+
+	s, err := h.start(entrypointPath)
+	if err != nil {
+		log.Logf("%q: failed to start: %v", expectedName, err)
+		return err
+	}
+	defer h.finish(s)
+
+	if err := h.initialize(s, expectedName, expectedProtocolVersion); err != nil {
+		log.Logf("%q: initialize failed: %v", expectedName, err)
+		return err
+	}
+	log.Logf("%q: initialize ok — binary matches its manifest", expectedName)
+	return nil
+}
+
 // Generate spawns the template plugin at entrypointPath and calls
 // plugin.generate. expectedName/expectedProtocolVersion come from the
 // manifest the registry discovered on disk, for the identity/protocol

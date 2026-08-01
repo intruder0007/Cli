@@ -111,6 +111,11 @@ commands:
                         flags/answers given; run 'bootstrap new -h' for
                         non-interactive flags)
   plugins list          list discovered template and capability plugins
+  plugins validate <dir>
+                        check a plugin directory before shipping it:
+                        manifest validity + binary identity/protocol
+                        handshake (run 'bootstrap plugins validate -h'
+                        for details)
   config get theme      print the persisted theme (empty if unset)
   config set theme <name>
                         persist a theme (default|minimal) for future

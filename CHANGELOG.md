@@ -33,6 +33,14 @@ for how to add an entry.
   multi-version sketched). Design notes added under
   `sdk/{node,python,rust,future}/`; no SDK beyond `sdk/go` is
   implemented, per scope.
+- `bootstrap plugins validate <dir>` — pre-release extension check:
+  validates a plugin directory's manifest (`Manifest.Validate()`) and
+  proves the entrypoint binary spawns and passes the
+  `plugin.initialize` identity/protocol cross-check against the
+  on-disk manifest (the same fail-fast surface `new` uses, ADR-0008),
+  without generating anything. Exit 0 = valid. Backed by new
+  `core/registry.LoadPluginDir` and `core/plugin.Host.Validate`
+  (additive, Experimental surface per ADR-0013).
 
 ### Changed
 

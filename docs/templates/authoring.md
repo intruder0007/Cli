@@ -65,3 +65,18 @@ repository's `go.work`.
 
 Place the built binary and manifest under `templates/my-template/`. No
 changes to `core` are required.
+
+## Validate before shipping
+
+Before packaging a template for release (or opening a PR that adds
+one), run the pre-release check:
+
+```sh
+bootstrap plugins validate templates/my-template
+```
+
+This proves the directory's `plugin.json` parses and passes
+`Manifest.Validate()`, and that the entrypoint binary actually spawns
+and reports the same identity/protocol version as the manifest at the
+`plugin.initialize` handshake — catching a stale or swapped binary
+before anyone installs it. Exit 0 means valid.

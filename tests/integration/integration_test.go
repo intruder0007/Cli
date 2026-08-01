@@ -244,6 +244,83 @@ func TestEndToEndGenerateViaEmbeddedFallback(t *testing.T) {
 	}
 }
 
+// TestPluginsValidateCommand proves the pre-release extension check:
+// `bootstrap plugins validate <dir>` accepts a real, built plugin (the
+// binary passes the plugin.initialize identity/protocol cross-check),
+// and rejects both a manifest whose binary doesn't match it (tampered
+// name -> IdentityMismatchError) and an invalid manifest — the same
+// fail-fast surface `new` uses, without generating anything.
+func TestPluginsValidateCommand(t *testing.T) {
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("bootstrap"))
+	buildBinary(t, root, "cli", cliPath)
+
+	pluginDir := filepath.Join(bin, "plugins", "go-rest-api")
+	if err := os.MkdirAll(pluginDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/go-rest-api", filepath.Join(pluginDir, exeName("go-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "go-rest-api", "plugin.json"), filepath.Join(pluginDir, "plugin.json"))
+
+	runValidate := func(t *testing.T, dir string) (string, error) {
+		t.Helper()
+		cmd := exec.Command(cliPath, "plugins", "validate", dir)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+
+	if out, err := runValidate(t, pluginDir); err != nil {
+		t.Fatalf("validate on a real plugin should exit 0, got err=%v\n%s", err, out)
+	}
+
+	// A real identity mismatch requires the spawned binary to report a
+	// different name than the manifest the registry reads. That happens
+	// when the entrypoint is a nested path whose directory carries its
+	// own plugin.json: the top-level manifest declares "go-rest-api"
+	// with entrypoint "./inner/go-rest-api", but the binary at that
+	// path reads the manifest beside itself (inner/plugin.json, name
+	// "inner-plugin") and self-reports differently — the stale- or
+	// swapped-binary shape ADR-0008's cross-check exists to catch.
+	mismatch := filepath.Join(bin, "mismatch")
+	inner := filepath.Join(mismatch, "inner")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	copyFile(t, filepath.Join(root, "templates", "go-rest-api", "plugin.json"), filepath.Join(mismatch, "plugin.json"))
+	outer, err := os.ReadFile(filepath.Join(mismatch, "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nested := strings.Replace(string(outer), `"./go-rest-api"`, `"./inner/go-rest-api"`, 1)
+	if nested == string(outer) {
+		t.Fatal("test setup: could not rewrite the entrypoint field")
+	}
+	if err := os.WriteFile(filepath.Join(mismatch, "plugin.json"), []byte(nested), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	innerManifest := strings.Replace(string(outer), `"go-rest-api"`, `"inner-plugin"`, 1)
+	if err := os.WriteFile(filepath.Join(inner, "plugin.json"), []byte(innerManifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	copyFile(t, filepath.Join(pluginDir, exeName("go-rest-api")), filepath.Join(inner, exeName("go-rest-api")))
+	if out, err := runValidate(t, mismatch); err == nil {
+		t.Fatalf("validate on a binary/manifest identity mismatch should fail, got exit 0\n%s", out)
+	}
+
+	invalid := filepath.Join(bin, "invalid")
+	if err := os.MkdirAll(invalid, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(invalid, "plugin.json"), []byte(`{"protocolVersion": "1"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runValidate(t, invalid); err == nil {
+		t.Fatalf("validate on an invalid manifest should fail, got exit 0\n%s", out)
+	}
+}
+
 // stageEmbedded builds the V1 template/capability binaries and copies
 // them (plus their plugin.json manifests) into embedAssets, mirroring
 // exactly what the Makefile's stage-embedded target and release.yml's
