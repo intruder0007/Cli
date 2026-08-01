@@ -2,7 +2,7 @@
 
 ## Subsystem map
 
-```
+```text
                        ┌─────────────┐
                        │     cli     │  interactive/non-interactive wizard
                        │ (stdlib)    │  (theme, project type, language,

@@ -52,10 +52,11 @@ Consequences). Open the ADR in the same PR as the change it justifies.
 
 See [`docs/plugins/authoring.md`](docs/plugins/authoring.md) and
 [`docs/templates/authoring.md`](docs/templates/authoring.md). In short:
-implement the `sdk.Plugin` interface from `sdk/go`, add a `plugin.json`
-manifest, and place it under `templates/<name>/` or
-`plugins/builtin/<name>/`. No core code changes are required — that's the
-whole point of plugin-first extensibility.
+implement `sdk.TemplatePlugin` (a `Generate` method) and/or
+`sdk.CapabilityPlugin` (an `Apply` method) from `sdk/go`, call
+`sdk.Serve(yourPlugin)`, add a `plugin.json` manifest, and place it under
+`templates/<name>/` or `plugins/builtin/<name>/`. No core code changes
+are required — that's the whole point of plugin-first extensibility.
 
 ## Releases
 

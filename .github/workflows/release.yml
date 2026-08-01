@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          PLUGIN_DIRS="templates/go-rest-api plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci"
+          PLUGIN_DIRS="templates/go-rest-api templates/node-rest-api plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci"
           TARGETS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
 
           for target in $TARGETS; do
