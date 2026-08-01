@@ -61,15 +61,19 @@ package `2.0.0` launching `bootstrap v0.1.1` should say so in its
 `README`/`CHANGELOG`, so a user filing an issue can tell which `bootstrap`
 release they actually hit.
 
-## Known gap: `go install`
+## `go install` — mitigated by the embedded fallback (ADR-0012)
 
-`go install github.com/intruder0007/Cli/cli@latest` compiles only the
-`cli` binary — no sibling plugin directories exist for it to find. This
-protocol's "locate the real binary" step doesn't apply to `go install`
-at all, since there's no wrapper in the loop; the binary IS the
-resolved artifact, but plugins are still missing. Not solved here — see
-[ADR-0010](adr/0010-distribution-architecture.md)'s recommended future
-direction (`go:embed` + self-extraction).
+`go install github.com/intruder0007/Cli/cli@latest` still compiles only
+the `cli` binary — no sibling plugin directories exist for it to find,
+and this protocol's "locate the real binary" step still doesn't apply
+(there's no wrapper in the loop; the binary IS the resolved artifact).
+What's changed since ADR-0010: the `cli` binary now embeds the V1
+plugin set at build time (`cli/internal/embedded`) and self-extracts it
+to a version-scoped cache directory whenever no sibling plugin
+directories can be found at all — see
+[ADR-0012](adr/0012-universal-install-architecture.md). A `go
+install`-produced binary now works out of the box; no `CLI_PLUGIN_DIRS`
+workaround or separate archive download is required.
 
 ## Status
 

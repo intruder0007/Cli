@@ -41,5 +41,16 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
 - **Distribution wrapper implementations.** ADR-0010 designed the
   contract and scaffolded `distribution/<ecosystem>/`; no npm, PyPI,
   Cargo, Homebrew, Scoop, Winget, or Chocolatey wrapper is actually
-  built yet. `go install` already works but is missing plugins (see
-  `distribution/go/README.md`).
+  built yet. `go install` works correctly out of the box as of
+  ADR-0012's embedded plugin fallback (see `distribution/go/README.md`).
+- **Old-version embedded-cache cleanup.** ADR-0012's self-extracted
+  plugin fallback is scoped per version
+  (`os.UserCacheDir()/bootstrap/<version>/`), so upgrading never serves
+  stale plugins, but nothing garbage-collects a *previous* version's
+  cache directory. Not proven to matter yet.
+- **Release archive simplification.** Now that the `cli` binary is
+  self-sufficient (ADR-0012), the release archive's sibling
+  `templates/`/`plugins/builtin/` directories are technically
+  redundant. Left as-is deliberately — every existing distribution doc
+  and would-be package-manager formula assumes today's archive shape;
+  revisit only once the embedded fallback has real-world mileage.

@@ -16,6 +16,12 @@
 /tmp-generated/
 /.bootstrap-out/
 
+# Plugin binaries + manifests staged for go:embed (see Makefile's
+# stage-embedded target and .github/workflows/release.yml) — generated,
+# never committed. .gitkeep keeps the package buildable without staging.
+/cli/internal/embedded/assets/*
+!/cli/internal/embedded/assets/.gitkeep
+
 # Editors / OS
 .DS_Store
 Thumbs.db

@@ -1,15 +1,16 @@
-# Go (`go install`) — mostly solved, one documented gap
+# Go (`go install`) — solved
 
 Not a wrapper: `cli` is already a public Go module, so
-`go install github.com/intruder0007/Cli/cli@latest` already compiles and
-installs a real, working `bootstrap` binary today. No new code needed
-for that part.
+`go install github.com/intruder0007/Cli/cli@latest` compiles and
+installs a real, working `bootstrap` binary. No new code needed for
+that part.
 
-**The gap**: `go install` produces only the binary — no sibling
-`templates/`/`plugins/` directories, which `pluginDirs()` needs (see the
+**The former gap is closed** (ADR-0012): `go install` still produces
+only the binary — no sibling `templates/`/`plugins/` directories — but
+the binary now embeds the V1 plugin set at build time and
+self-extracts it to a cache directory on first use whenever no sibling
+directories are found. See the
 [wrapper protocol](../../docs/architecture/distribution-protocol.md)'s
-"Known gap" section and [ADR-0010](../../docs/architecture/adr/0010-distribution-architecture.md)).
-Until that's resolved (`go:embed` self-extraction is the recommended
-direction), `go install` users need `CLI_PLUGIN_DIRS` pointed at a
-manually-downloaded release archive, or should install a release archive
-directly instead.
+`go install` section and
+[ADR-0012](../../docs/architecture/adr/0012-universal-install-architecture.md).
+No `CLI_PLUGIN_DIRS` workaround is needed anymore.

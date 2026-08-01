@@ -4,8 +4,11 @@ name: Release
 # every target is cross-compiled from a single ubuntu-latest runner (no
 # cgo anywhere in this repo), and each archive is a self-contained
 # directory laid out exactly the way cli/main.go's pluginDirs() already
-# looks for plugins relative to the executable — no runtime code change
-# needed, only this packaging step.
+# looks for plugins relative to the executable. Since ADR-0012, each
+# platform's bootstrap binary also embeds that platform's plugin
+# binaries via go:embed (cli/internal/embedded) — the archive layout
+# below is unchanged, but the binary itself no longer strictly depends
+# on the sibling directories surviving extraction intact.
 on:
   push:
     tags: ["v*.*.*"]
@@ -45,15 +48,25 @@ jobs:
             rm -rf "$OUT"
             mkdir -p "$OUT"
 
-            echo "== building $GOOS/$GOARCH =="
-            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=${VERSION}" -o "$OUT/bootstrap${EXE}" ./cli
-
+            # Plugins build first and are staged into cli's own embed
+            # directory before cli builds — see ADR-0012 — so each
+            # platform's bootstrap binary embeds that same platform's
+            # plugin binaries as a last-resort discovery fallback (e.g.
+            # for `go install`, which produces only the one binary).
+            EMBED_DIR="cli/internal/embedded/assets"
+            rm -rf "$EMBED_DIR/templates" "$EMBED_DIR/plugins"
+            echo "== building plugins for $GOOS/$GOARCH =="
             for p in $PLUGIN_DIRS; do
               name=$(basename "$p")
-              mkdir -p "$OUT/$p"
+              mkdir -p "$OUT/$p" "$EMBED_DIR/$p"
               GOOS=$GOOS GOARCH=$GOARCH go build -o "$OUT/$p/${name}${EXE}" "./$p"
               cp "$p/plugin.json" "$OUT/$p/plugin.json"
+              cp "$OUT/$p/${name}${EXE}" "$EMBED_DIR/$p/${name}${EXE}"
+              cp "$p/plugin.json" "$EMBED_DIR/$p/plugin.json"
             done
+
+            echo "== building bootstrap for $GOOS/$GOARCH =="
+            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=${VERSION}" -o "$OUT/bootstrap${EXE}" ./cli
 
             cp LICENSE "$OUT/LICENSE"
             cp README.md "$OUT/README.md"
