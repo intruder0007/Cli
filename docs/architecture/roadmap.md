@@ -26,10 +26,15 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   later; if this ever changes it needs its own ADR and explicit opt-in.
 - **Auto-update.** The CLI is a static binary users fetch themselves; no
   self-update mechanism in V1.
-- **Capability conflict resolution / advanced composition.** V1 applies
-  selected capabilities sequentially in the order the user picked them;
-  no dependency graph, no conflict detection between capabilities that
-  touch the same file.
+- **Capability conflict detection.** ADR-0008 added `dependsOn`-based
+  ordering, but there's still no detection of two capabilities that
+  touch the same file in incompatible ways — ordering, not conflict
+  resolution.
 - **Workspace/monorepo project generation.** V1 generates exactly one
   project per run.
 - **Localization/i18n of the wizard.** English only in V1.
+- **Distribution wrapper implementations.** ADR-0010 designed the
+  contract and scaffolded `distribution/<ecosystem>/`; no npm, PyPI,
+  Cargo, Homebrew, Scoop, Winget, or Chocolatey wrapper is actually
+  built yet. `go install` already works but is missing plugins (see
+  `distribution/go/README.md`).
