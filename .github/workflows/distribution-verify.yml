@@ -60,8 +60,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      # A bare "distribution/homebrew/bootstrap.rb" (no leading ./) is
+      # ambiguous with brew's "user/repo/formula" tap shorthand — brew
+      # tried to clone a tap named distribution/homebrew and failed.
+      # An explicit relative path disambiguates it as a local file.
       - name: Install formula
-        run: brew install --formula distribution/homebrew/bootstrap.rb
+        run: brew install --formula ./distribution/homebrew/bootstrap.rb
       - name: Formula test block
         run: brew test bootstrap
       - name: Verify
@@ -71,11 +75,16 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      # Scoop's installer adds its shims dir to PATH only within this
+      # step's own process — GitHub Actions runs every step in a fresh
+      # shell, so that PATH change doesn't carry to the next step.
+      # Persist it explicitly via $GITHUB_PATH instead.
       - name: Install Scoop
         shell: powershell
         run: |
           Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
           Invoke-RestMethod get.scoop.sh | Invoke-Expression
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE\scoop\shims"
       - name: Install manifest
         shell: powershell
         run: |
@@ -106,6 +115,12 @@ jobs:
         if: steps.check.outputs.available == 'true'
         shell: powershell
         run: winget validate distribution\winget\manifests\i\intruder0007\Cli\0.2.0
+      # Installing from a local manifest is an opt-in winget feature —
+      # off by default, must be explicitly enabled first.
+      - name: Enable local manifest installs
+        if: steps.check.outputs.available == 'true'
+        shell: powershell
+        run: winget settings --enable LocalManifestFiles
       - name: Install manifest
         if: steps.check.outputs.available == 'true'
         shell: powershell
