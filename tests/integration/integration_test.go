@@ -195,3 +195,96 @@ func TestEndToEndGenerateNodeRestAPI(t *testing.T) {
 		t.Fatalf("generated Node project failed its own tests: %v\n%s", err, out)
 	}
 }
+
+// TestEndToEndGenerateViaEmbeddedFallback proves the actual claim behind
+// ADR-0012: a bootstrap binary with no sibling templates/plugins
+// directories at all — exactly what `go install` produces — still
+// works, via the V1 plugin set embedded into the binary at build time
+// (cli/internal/embedded) and self-extracted on first use. This test
+// stages real plugin binaries into cli/internal/embedded/assets/ (the
+// same directory the Makefile and release.yml stage into) so `go build
+// ./cli` actually embeds them, then runs the resulting binary from a
+// directory that has nothing next to it and no CLI_PLUGIN_DIRS —
+// unlike TestEndToEndGenerateGoRestAPI, which deliberately sets
+// CLI_PLUGIN_DIRS and exercises the normal sibling-directory path.
+func TestEndToEndGenerateViaEmbeddedFallback(t *testing.T) {
+	root := repoRoot(t)
+	embedAssets := filepath.Join(root, "cli", "internal", "embedded", "assets")
+
+	stageEmbedded(t, root, embedAssets)
+
+	bin := t.TempDir()
+	cliPath := filepath.Join(bin, exeName("bootstrap"))
+	buildBinary(t, root, "cli", cliPath)
+
+	// A bare directory: no templates/, no plugins/, no CLI_PLUGIN_DIRS.
+	// This is the go-install scenario, reproduced without needing a
+	// real `go install` from the public module path.
+	genParent := t.TempDir()
+	const projectName = "e2e-embedded-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "backend-service",
+		"--language", "go",
+		"--framework", "rest-api",
+		"--capabilities", "readme",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = envWithout(os.Environ(), "CLI_PLUGIN_DIRS")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("bootstrap new via embedded fallback failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+	for _, f := range []string{"go.mod", "main.go", "README.md"} {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+}
+
+// stageEmbedded builds the V1 template/capability binaries and copies
+// them (plus their plugin.json manifests) into embedAssets, mirroring
+// exactly what the Makefile's stage-embedded target and release.yml's
+// per-target staging step do. It registers a cleanup that removes the
+// staged content afterward, regardless of test outcome, so the repo's
+// working tree is left exactly as it was found (only the checked-in
+// assets/.gitkeep survives).
+func stageEmbedded(t *testing.T, root, embedAssets string) {
+	t.Helper()
+	t.Cleanup(func() {
+		os.RemoveAll(filepath.Join(embedAssets, "templates"))
+		os.RemoveAll(filepath.Join(embedAssets, "plugins"))
+	})
+
+	templateDir := filepath.Join(embedAssets, "templates", "go-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/go-rest-api", filepath.Join(templateDir, exeName("go-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "go-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	capDir := filepath.Join(embedAssets, "plugins", "builtin", "readme")
+	if err := os.MkdirAll(capDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "plugins/builtin/readme", filepath.Join(capDir, exeName("readme")))
+	copyFile(t, filepath.Join(root, "plugins", "builtin", "readme", "plugin.json"), filepath.Join(capDir, "plugin.json"))
+}
+
+// envWithout returns env with every entry whose key matches name
+// removed — used so the embedded-fallback test can't accidentally
+// inherit a CLI_PLUGIN_DIRS set in the ambient test environment (e.g.
+// by a developer running tests locally with it exported).
+func envWithout(env []string, name string) []string {
+	prefix := name + "="
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}

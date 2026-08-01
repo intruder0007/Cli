@@ -85,8 +85,11 @@ capabilities: [git-init, readme, github-actions-ci]
   read or explicitly set the persisted theme, without running the
   wizard.
 - `bootstrap doctor` — runs local health checks (plugin directory
-  resolution, manifest validity) and prints a pass/fail summary with a
-  recovery hint. Spawns no plugin subprocess — discovery only.
+  resolution, manifest validity, whether this binary has embedded
+  fallback plugin assets and whether they're currently in use — see
+  [ADR-0012](../architecture/adr/0012-universal-install-architecture.md))
+  and prints a pass/fail summary with a recovery hint. Spawns no plugin
+  subprocess — discovery only.
 - `bootstrap version` — prints the CLI version, Go runtime version, and
   OS/arch (e.g. `bootstrap version v0.2.0 (go1.22.5, windows/amd64)`) —
   useful context to include in a bug report.

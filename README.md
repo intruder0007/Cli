@@ -49,7 +49,34 @@ subsystem, all merged into `main` via pull request (never a direct push to
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full workflow and
 [`docs/architecture/`](docs/architecture/) for ADRs and design docs.
 
+## Installation
+
+Every install method below produces a fully working `bootstrap` — see
+[ADR-0012](docs/architecture/adr/0012-universal-install-architecture.md):
+the binary embeds its own plugin set as a fallback, so it works
+correctly on its own regardless of how it got onto your machine.
+
+```sh
+# install script (Linux/macOS)
+curl -fsSL https://raw.githubusercontent.com/intruder0007/Cli/main/install.sh | sh
+
+# install script (Windows, PowerShell)
+iwr https://raw.githubusercontent.com/intruder0007/Cli/main/install.ps1 -useb | iex
+
+# go install (works out of the box — no manual plugin setup needed)
+go install github.com/intruder0007/Cli/cli@latest
+
+# or download a release archive directly:
+# https://github.com/intruder0007/Cli/releases
+```
+
+No package manager is implemented yet for any ecosystem (npm, Homebrew,
+etc.) — see [`distribution/`](distribution/) for the design and status
+of each.
+
 ## Quickstart
+
+Building from source, for contributors:
 
 ```sh
 make build
@@ -59,10 +86,8 @@ make build
 Run this from the repository root: `make build` places the CLI at
 `bin/bootstrap` and every template/capability plugin under
 `templates/`/`plugins/builtin/` (discovered relative to the current
-working directory) — building only `go build -o bootstrap ./cli` skips
-the plugins, and `bootstrap new` will fail with "no template plugin
-found." See [`docs/cli/usage.md`](docs/cli/usage.md) for `bootstrap
-doctor`, a health check for exactly this kind of setup problem.
+working directory). See [`docs/cli/usage.md`](docs/cli/usage.md) for
+`bootstrap doctor`, a health check for plugin-discovery setup problems.
 
 Answer the prompts (theme → project type → language → framework →
 capabilities) and a new project is generated in the current directory. For

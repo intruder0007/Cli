@@ -15,7 +15,7 @@ design note for whoever picks it up.
 | npm | [`npm/`](npm/) | not started |
 | PyPI | [`pypi/`](pypi/) | not started |
 | Cargo | [`cargo/`](cargo/) | not started |
-| Go | [`go/`](go/) | mostly solved already; documented gap remains |
+| Go | [`go/`](go/) | solved (ADR-0012) |
 | Homebrew | [`homebrew/`](homebrew/) | not started |
 | Scoop | [`scoop/`](scoop/) | not started |
 | Winget | [`winget/`](winget/) | not started |

@@ -15,6 +15,28 @@ for how to add an entry.
 
 ## [Unreleased]
 
+### Added
+
+- Universal install architecture (ADR-0012): the `cli` binary now embeds
+  the V1 plugin set at build time and self-extracts it to a
+  version-scoped cache directory whenever no sibling
+  `templates/`/`plugins/builtin/` directories can be found — closing
+  the `go install` gap ADR-0010 had left open. `go install
+  github.com/intruder0007/Cli/cli@latest` now works out of the box.
+- `install.sh`/`install.ps1` — one-line install scripts that resolve
+  platform, verify the release archive's checksum, and put just the
+  `bootstrap` binary on `PATH`.
+- `bootstrap doctor` now reports whether this binary has embedded
+  plugin assets and whether the embedded fallback is currently serving
+  plugins for the run.
+
+### Changed
+
+- `Makefile`'s `build` target and `.github/workflows/release.yml` now
+  stage built plugin binaries into `cli/internal/embedded/assets/`
+  before building `cli`, so each build's binary embeds its own
+  platform's plugin set (see ADR-0012's "Build-order coupling").
+
 ## [0.2.0] - 2026-08-01
 
 ### Added
