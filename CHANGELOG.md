@@ -12,6 +12,13 @@ for how to add an entry.
 
 ### Added
 
+- Distribution architecture design (ADR-0010): the wrapper contract
+  every future npm/PyPI/Cargo/Homebrew/Scoop/Winget/Chocolatey package
+  must follow, plus scaffolded `distribution/<ecosystem>/` design notes.
+  No wrapper is implemented — design and structure only, per scope.
+
+### Added
+
 - Second template, `templates/node-rest-api` — a Node.js HTTP API
   service (zero npm dependencies), the first real proof of
   "cross-language." `node`/`http-api` are now real, selectable wizard
