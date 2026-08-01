@@ -12,8 +12,8 @@ $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $packageArgs = @{
   PackageName  = 'bootstrap-cli'
   UnzipLocation = $toolsDir
-  Url          = 'https://github.com/intruder0007/Cli/releases/download/v0.2.0/cli_v0.2.0_windows_amd64.zip'
-  Checksum     = 'E0AA396C5EA19B13BF1929E4D6B94D576366FE76CF1A32E870199DB9FFBC732E'
+  Url          = 'https://github.com/intruder0007/Cli/releases/download/v0.3.0/cli_v0.3.0_windows_amd64.zip'
+  Checksum     = '05CE82ABDE6942CA3236B41EE8C39EABFD483C16FF0B1125026E5DF2FD53D427'
   ChecksumType = 'sha256'
 }
 

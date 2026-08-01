@@ -1,6 +1,6 @@
 {
   "name": "bootstrap-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Thin launcher for the Cli developer bootstrap platform (github.com/intruder0007/Cli) — downloads and runs the real bootstrap binary for your platform.",
   "license": "MIT",
   "repository": {

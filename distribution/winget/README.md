@@ -3,7 +3,7 @@
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 
 3-file manifest set under
-`manifests/i/intruder0007/Cli/0.2.0/` (version, installer, locale —
+`manifests/i/intruder0007/Cli/0.3.0/` (version, installer, locale —
 `InstallerType: zip`, `InstallerSha256` from the real published
 `SHA256SUMS.txt`, `NestedInstallerFiles: [{ RelativeFilePath:
 bootstrap.exe, PortableCommandAlias: bootstrap }]`). Winget's zip
@@ -12,7 +12,7 @@ directory and only aliases the named file onto `PATH` — same
 whole-archive-survives property as Scoop, no custom logic needed.
 
 **Verified locally**: `winget validate
-distribution\winget\manifests\i\intruder0007\Cli\0.2.0` passed against
+distribution\winget\manifests\i\intruder0007\Cli\0.3.0` passed against
 the real `winget` on this dev machine (schema/lint check only, no
 install).
 

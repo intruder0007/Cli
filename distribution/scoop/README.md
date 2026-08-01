@@ -2,8 +2,8 @@
 
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 
-`bootstrap.json`: `url`/`hash` pointing at the real `v0.2.0`
-`cli_v0.2.0_windows_amd64.zip` release asset and its real checksum (from
+`bootstrap.json`: `url`/`hash` pointing at the real `v0.3.0`
+`cli_v0.3.0_windows_amd64.zip` release asset and its real checksum (from
 the published `SHA256SUMS.txt`), `bin: "bootstrap.exe"`. Scoop extracts
 the whole zip into the app's versioned directory by default and only
 *shims* the named `bin` — it doesn't discard the rest, so
