@@ -15,6 +15,16 @@ for how to add an entry.
 
 ## [Unreleased]
 
+### Added
+
+- Public API compatibility policy (ADR-0013 + `api-compatibility.md`):
+  an explicit inventory of every public surface with its stability
+  stage (Stable: wire protocol, `sdk/go`, CLI commands, distribution
+  contract; Experimental: theme API, `core` packages), lifecycle
+  stages (Experimental → Stable → Deprecated → Removed), and semver
+  rules binding releases to surfaces. `sdk/go`'s package doc now
+  declares its Stable status.
+
 ### Changed
 
 - All 7 distribution wrappers repointed at the real `v0.3.0` release

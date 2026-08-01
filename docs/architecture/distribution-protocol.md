@@ -77,7 +77,10 @@ workaround or separate archive download is required.
 
 ## Status
 
-No wrapper is implemented yet for any ecosystem. See
-`distribution/<ecosystem>/README.md` for per-ecosystem notes and
-`docs/architecture/roadmap.md` for where this sits relative to other
-deferred work.
+Wrappers are implemented and CI-verified for 7 of 8 planned ecosystems
+(npm, PyPI, Cargo, Homebrew, Scoop, Winget, Chocolatey) — see
+`distribution/<ecosystem>/README.md` for each one's status. **None are
+published** to a live registry; publishing is a separate,
+explicitly-confirmed step per ecosystem. The Go path (`go install`) is
+solved by the embedded fallback (ADR-0012). This contract is a Stable
+public API — see `docs/architecture/api-compatibility.md`.

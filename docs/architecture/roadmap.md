@@ -38,11 +38,26 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
 - **Workspace/monorepo project generation.** V1 generates exactly one
   project per run.
 - **Localization/i18n of the wizard.** English only in V1.
-- **Distribution wrapper implementations.** ADR-0010 designed the
-  contract and scaffolded `distribution/<ecosystem>/`; no npm, PyPI,
-  Cargo, Homebrew, Scoop, Winget, or Chocolatey wrapper is actually
-  built yet. `go install` works correctly out of the box as of
-  ADR-0012's embedded plugin fallback (see `distribution/go/README.md`).
+- **Distribution wrapper *publishing*.** The 7 wrappers (npm, PyPI,
+  Cargo, Homebrew, Scoop, Winget, Chocolatey) are built and CI-verified
+  against real release assets, but none is published to a live registry
+  — publishing needs either a credential (npm/PyPI/Cargo/Chocolatey) or
+  a PR to a third-party repo (Homebrew/Scoop/Winget), each an
+  explicitly-confirmed separate step. `go install` works correctly out
+  of the box as of ADR-0012's embedded plugin fallback (see
+  `distribution/go/README.md`).
+- **Multi-version protocol negotiation.** The host supports exactly one
+  wire-protocol version per release and rejects mismatches at the
+  `plugin.initialize` handshake (ADR-0008); serving two protocol
+  versions simultaneously (so old plugins keep working across a
+  protocol bump) is deferred until a protocol change actually needs it
+  — see `api-compatibility.md`.
+- **Public theme API.** The theme registry (`RegisterTheme`/`GetTheme`
+  in `cli/internal/prompt`) is a real in-process seam (ADR-0007) but
+  lives in an `internal/` package, so it's Experimental, not public.
+  Promoting it to a Stable public API — or adding theme *plugins* — is
+  a future ADR, needed only when a concrete third-party theme exists
+  (see ADR-0013).
 - **Old-version embedded-cache cleanup.** ADR-0012's self-extracted
   plugin fallback is scoped per version
   (`os.UserCacheDir()/bootstrap/<version>/`), so upgrading never serves
