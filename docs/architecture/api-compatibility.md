@@ -121,9 +121,9 @@ released in a version:
 3. Make the breaking change in the next major (or, pre-`v1.0.0`,
    the next minor) release, and document it in `CHANGELOG.md`'s
    "Changed"/"Removed" sections.
-4. Provide a migration guide entry in `docs/` when the change is
-   user-visible (see `docs/` for existing guides; new ones follow the
-   same format).
+4. Provide a migration guide entry in `docs/guides/migration-guide.md`
+   when the change is user-visible (same format as the existing
+   entries: version — what changed — who is affected — what to do).
 
 ## Additive changes that need no ADR
 

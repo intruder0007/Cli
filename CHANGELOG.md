@@ -41,6 +41,17 @@ for how to add an entry.
   without generating anything. Exit 0 = valid. Backed by new
   `core/registry.LoadPluginDir` and `core/plugin.Host.Validate`
   (additive, Experimental surface per ADR-0013).
+- Documentation suite (Phase E): new `docs/README.md` index;
+  `docs/guides/api-reference.md` (the four Stable surfaces enumerated
+  — wire protocol, `sdk/go` exports, CLI commands, wrapper contract);
+  `docs/guides/versioning.md` (release/surface/`protocolVersion`
+  rules for consumers); `docs/guides/migration-guide.md` (every
+  user-visible breaking change so far, the pre-flight checklist, and
+  the format future entries must follow); `docs/guides/tutorials.md`
+  (a capability plugin in Go, a template plugin in Go, and a
+  hand-written protocol implementation using the golden transcripts
+  as fixtures). README and api-compatibility now point at the index
+  and the migration guide.
 - Wire-protocol compatibility tests (Phase D): byte-exact golden
   transcripts pin the full JSON-RPC lifecycle — `plugin.initialize`,
   `plugin.generate`/`plugin.apply`, `plugin.shutdown` — on both sides

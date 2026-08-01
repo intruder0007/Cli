@@ -46,8 +46,10 @@ subsystem, all merged into `main` via pull request (never a direct push to
 | `plugins` | Built-in capability plugins (V1: `git-init`, `readme`, `github-actions-ci`) |
 | `tests` | Integration/golden tests + CI workflow |
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full workflow and
-[`docs/architecture/`](docs/architecture/) for ADRs and design docs.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full workflow,
+[`docs/README.md`](docs/README.md) for the documentation index
+(architecture, guides, API reference, tutorials, ADRs), and
+[`docs/architecture/`](docs/architecture/) for the design docs.
 
 ## Installation
 
