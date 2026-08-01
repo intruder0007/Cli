@@ -129,3 +129,38 @@ see [docs/plugins/authoring.md](../plugins/authoring.md) and
 [docs/templates/authoring.md](../templates/authoring.md). Non-Go SDKs are
 not built in V1, but any language can implement this protocol directly
 from this document.
+
+## Wire protocol stability
+
+The exact bytes on the wire are pinned by golden transcript tests on
+both sides, so a change to either implementation can't ship silently:
+
+- **Host side** — `core/plugin/wire_test.go` builds
+  `core/plugin/wiretest` (a real plugin binary served by `sdk/go`) and
+  records the full lifecycle byte-for-byte against
+  `core/plugin/testdata/wire-generate.golden` and
+  `wire-apply.golden` (the exact requests the host emits, the exact
+  responses a conforming SDK-served plugin returns).
+- **Plugin side** — `sdk/go/sdk/wire_test.go` drives the protocol loop
+  in-process against `sdk/go/sdk/testdata/serve-lifecycle.golden` (the
+  same lifecycle, plus `plugin.apply`) and `serve-errors.golden` (the
+  JSON-RPC error contract).
+
+Together these pin: method names and request/response shapes (including
+field names and serialization order), JSON-RPC id sequencing, the
+`plugin.initialize` handshake and manifest reporting, the shutdown
+sequence, and the JSON-RPC error codes (`-32700` parse error, `-32601`
+unknown method / not implemented by this plugin kind, `-32602` invalid
+params, `-32000` plugin failure). Note that Go's `encoding/json`
+HTML-escapes non-ASCII-safe characters (`&` appears as `\u0026`); any
+conforming JSON-RPC parser treats them as identical — third-party
+implementations must accept both forms.
+
+A wire-protocol change is always a breaking change (see
+`api-compatibility.md`). When one is made deliberately, update this
+document, the SDK bindings, and the goldens in the same commit:
+
+```sh
+go test ./core/plugin/ -run WireTranscript -update
+go test ./sdk/go/sdk/ -run ServeWire -update
+```

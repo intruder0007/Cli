@@ -1,0 +1,6 @@
+> {"jsonrpc":"2.0","id":7,"method":"plugin.bogus","params":{}}
+< {"jsonrpc":"2.0","id":7,"error":{"code":-32601,"message":"unknown method: plugin.bogus"}}
+> {"jsonrpc":"2.0","id":8,"method":"plugin.apply","params":{"targetDir":"/x","projectName":"y","answers":{}}}
+< {"jsonrpc":"2.0","id":8,"error":{"code":-32601,"message":"plugin does not implement apply"}}
+> {"jsonrpc":"2.0","id":9,"method":"plugin.generate","params":{"targetDir":"/x","projectName":"y","answers":{}}}
+< {"jsonrpc":"2.0","id":9,"error":{"code":-32000,"message":"simulated failure"}}
