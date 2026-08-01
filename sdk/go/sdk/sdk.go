@@ -143,12 +143,18 @@ func Serve(plugin interface{}) {
 		fmt.Fprintf(os.Stderr, "sdk: invalid plugin.json: %v\n", err)
 		os.Exit(1)
 	}
+	serveWithIO(plugin, manifest, os.Stdin, os.Stdout)
+}
 
-	reader := bufio.NewReader(os.Stdin)
-	writer := os.Stdout
+// serveWithIO runs the same protocol loop as Serve over explicit
+// reader/writer streams, so the wire behavior can be pinned byte-for-
+// byte in-process (see the golden transcripts in testdata/). Unexported:
+// the production transport is fixed to stdio.
+func serveWithIO(plugin interface{}, manifest Manifest, reader io.Reader, writer io.Writer) {
+	br := bufio.NewReader(reader)
 
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, err := br.ReadBytes('\n')
 		if len(line) == 0 && err != nil {
 			if err == io.EOF {
 				return

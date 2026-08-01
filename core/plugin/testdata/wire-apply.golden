@@ -1,0 +1,6 @@
+> {"jsonrpc":"2.0","id":1,"method":"plugin.initialize","params":{"protocolVersion":"1"}}
+< {"jsonrpc":"2.0","id":1,"result":{"manifest":{"protocolVersion":"1","name":"wiretest","version":"0.1.0","kind":"capability","displayName":"Wire Test Capability","capabilityId":"wiretest-cap","entrypoint":"./wiretest"},"ok":true}}
+> {"jsonrpc":"2.0","id":2,"method":"plugin.apply","params":{"targetDir":"/abs/path/to/new-project","projectName":"new-project","answers":{"framework":"rest-api","language":"go","projectType":"backend-service","theme":"default"}}}
+< {"jsonrpc":"2.0","id":2,"result":{"filesWritten":["README.md","Makefile"],"filesModified":[".gitignore"],"nextSteps":["git add -A"]}}
+> {"jsonrpc":"2.0","id":3,"method":"plugin.shutdown","params":{}}
+< {"jsonrpc":"2.0","id":3,"result":{"ok":true}}

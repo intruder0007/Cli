@@ -41,6 +41,17 @@ for how to add an entry.
   without generating anything. Exit 0 = valid. Backed by new
   `core/registry.LoadPluginDir` and `core/plugin.Host.Validate`
   (additive, Experimental surface per ADR-0013).
+- Wire-protocol compatibility tests (Phase D): byte-exact golden
+  transcripts pin the full JSON-RPC lifecycle — `plugin.initialize`,
+  `plugin.generate`/`plugin.apply`, `plugin.shutdown` — on both sides
+  of the wire (`core/plugin/testdata/wire-generate.golden`,
+  `wire-apply.golden` from a real SDK-served responder binary;
+  `sdk/go/sdk/testdata/serve-lifecycle.golden`, `serve-errors.golden`
+  for the JSON-RPC error contract). Regenerable via `-update`.
+  `sdk.Serve`'s protocol loop was refactored into an unexported
+  `serveWithIO(reader, writer)` for in-process byte-exact testing;
+  public API and behavior unchanged. See "Wire protocol stability" in
+  `plugin-protocol.md`.
 
 ### Changed
 

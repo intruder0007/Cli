@@ -1,0 +1,8 @@
+> {"jsonrpc":"2.0","id":1,"method":"plugin.initialize","params":{"protocolVersion":"1"}}
+< {"jsonrpc":"2.0","id":1,"result":{"manifest":{"protocolVersion":"1","name":"t","version":"0.1.0","kind":"template","displayName":"Test Template","projectType":"backend-service","language":"go","framework":"rest-api","entrypoint":"./t"},"ok":true}}
+> {"jsonrpc":"2.0","id":2,"method":"plugin.generate","params":{"answers":{"framework":"rest-api","language":"go","projectType":"backend-service","theme":"default"},"projectName":"new-project","targetDir":"/abs/path/to/new-project"}}
+< {"jsonrpc":"2.0","id":2,"result":{"filesWritten":["go.mod","main.go"],"nextSteps":["cd new-project \u0026\u0026 go run ."]}}
+> {"jsonrpc":"2.0","id":3,"method":"plugin.apply","params":{"answers":{"framework":"rest-api","language":"go","projectType":"backend-service","theme":"default"},"projectName":"new-project","targetDir":"/abs/path/to/new-project"}}
+< {"jsonrpc":"2.0","id":3,"result":{"filesWritten":["README.md","Makefile"],"filesModified":[".gitignore"],"nextSteps":["git add -A"]}}
+> {"jsonrpc":"2.0","id":4,"method":"plugin.shutdown","params":{}}
+< {"jsonrpc":"2.0","id":4,"result":{"ok":true}}

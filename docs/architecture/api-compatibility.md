@@ -81,6 +81,12 @@ protocol. Rules:
   period + major version rules above. Version negotiation across two
   simultaneously-supported protocol versions is deferred (see
   `roadmap.md`).
+- The exact bytes of the wire protocol are **enforced by golden
+  transcript tests** on both sides of the wire (see "Wire protocol
+  stability" in `plugin-protocol.md`): a host or SDK change that alters
+  any method name, parameter or response field, id sequencing, the
+  handshake, the shutdown sequence, or an error code fails CI until the
+  goldens and this policy are updated together.
 
 ## What Stable guarantees, concretely
 
