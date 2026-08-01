@@ -15,6 +15,8 @@ for how to add an entry.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-01
+
 ### Added
 
 - `core/diag` — a minimal `Logger` seam shared by `core/engine` and
@@ -112,6 +114,7 @@ backend service (`templates/go-rest-api`) with three capability plugins
 (`git-init`, `readme`, `github-actions-ci`), over a subprocess +
 line-delimited JSON-RPC 2.0 plugin protocol (`sdk/go`).
 
-[Unreleased]: https://github.com/intruder0007/Cli/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/intruder0007/Cli/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/intruder0007/Cli/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/intruder0007/Cli/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/intruder0007/Cli/releases/tag/v0.1.0
