@@ -23,20 +23,28 @@ func Banner(w io.Writer, t Theme) {
 }
 
 // SuccessScreen renders the result of a successful "bootstrap new" run:
-// what was generated, and what to do next.
-func SuccessScreen(w io.Writer, t Theme, projectName string, filesWritten, nextSteps []string) {
+// a project summary (template, capabilities applied, file count), the
+// files written, and what to do next.
+func SuccessScreen(w io.Writer, t Theme, projectName string, s engine.Summary) {
 	fmt.Fprintln(w, t.Success(fmt.Sprintf("Generated %s", projectName)))
-	if len(filesWritten) > 0 {
+
+	summaryLine := fmt.Sprintf("  template: %s  ·  %d file(s)", s.Template, len(s.FilesWritten))
+	if len(s.CapabilitiesApplied) > 0 {
+		summaryLine += fmt.Sprintf("  ·  capabilities: %s", strings.Join(s.CapabilitiesApplied, ", "))
+	}
+	fmt.Fprintln(w, t.Dim(summaryLine))
+
+	if len(s.FilesWritten) > 0 {
 		fmt.Fprintln(w)
-		for _, f := range filesWritten {
+		for _, f := range s.FilesWritten {
 			fmt.Fprintln(w, t.Info("  + "+f))
 		}
 	}
-	if len(nextSteps) > 0 {
+	if len(s.NextSteps) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, t.Header("Next steps:"))
-		for _, s := range nextSteps {
-			fmt.Fprintln(w, "  "+s)
+		for _, step := range s.NextSteps {
+			fmt.Fprintln(w, "  "+step)
 		}
 	}
 }
@@ -107,6 +115,9 @@ commands:
   config set theme <name>
                         persist a theme (default|minimal) for future
                         interactive runs
-  version                print the CLI version
+  doctor                 run local health checks (plugin discovery/
+                        validity) and report pass/fail with hints
+  version                print the CLI version, Go runtime, and platform
 
-Run 'bootstrap <command> -h' for flags on a specific command.`
+Run 'bootstrap <command> -h' for flags on a specific command.
+Pass -verbose (or -v) to 'bootstrap new' for diagnostic logging on stderr.`

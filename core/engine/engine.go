@@ -9,14 +9,17 @@ import (
 	"fmt"
 
 	"github.com/intruder0007/Cli/core/config"
+	"github.com/intruder0007/Cli/core/diag"
 	"github.com/intruder0007/Cli/core/registry"
 	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
 
 // Summary aggregates the result of a full generate+apply run.
 type Summary struct {
-	FilesWritten []string
-	NextSteps    []string
+	FilesWritten        []string
+	NextSteps           []string
+	Template            string
+	CapabilitiesApplied []string
 }
 
 // Resolver finds plugins by wizard answer / capability id. Satisfied by
@@ -38,11 +41,21 @@ type Runner interface {
 type Engine struct {
 	Registry Resolver
 	Host     Runner
+	// Logger receives diagnostic lines about resolution/ordering
+	// decisions. Nil means silent.
+	Logger diag.Logger
 }
 
 // New returns an Engine using the given registry and host.
 func New(reg Resolver, host Runner) *Engine {
 	return &Engine{Registry: reg, Host: host}
+}
+
+func (e *Engine) logger() diag.Logger {
+	if e.Logger != nil {
+		return e.Logger
+	}
+	return diag.NoopLogger{}
 }
 
 // CapabilityCycleError means the selected capabilities' dependsOn
@@ -70,6 +83,7 @@ func answersMap(a config.Answers) map[string]string {
 // generates the project, then applies each capability in that order.
 func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	var summary Summary
+	log := e.logger()
 
 	if err := a.Validate(); err != nil {
 		return summary, err
@@ -79,11 +93,17 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	if err != nil {
 		return summary, err
 	}
+	log.Logf("resolved template %q for %s/%s/%s", tmpl.Manifest.Name, a.ProjectType, a.Language, a.Framework)
 
 	ordered, err := e.resolveOrderedCapabilities(a.Capabilities)
 	if err != nil {
 		return summary, err
 	}
+	if len(ordered) > 0 {
+		log.Logf("resolved %d capabilities, execution order: %v", len(ordered), capabilityIDs(ordered))
+	}
+
+	summary.Template = tmpl.Manifest.Name
 
 	genResp, err := e.Host.Generate(tmpl.EntrypointPath, tmpl.Manifest.Name, sdk.ProtocolVersion, sdk.GenerateRequest{
 		TargetDir:   targetDir,
@@ -107,8 +127,10 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 		}
 		summary.FilesWritten = append(summary.FilesWritten, applyResp.FilesWritten...)
 		summary.NextSteps = append(summary.NextSteps, applyResp.NextSteps...)
+		summary.CapabilitiesApplied = append(summary.CapabilitiesApplied, c.Manifest.CapabilityID)
 	}
 
+	log.Logf("run complete: %d files written, %d capabilities applied", len(summary.FilesWritten), len(summary.CapabilitiesApplied))
 	return summary, nil
 }
 
@@ -135,6 +157,14 @@ func (e *Engine) resolveOrderedCapabilities(capabilityIDs []string) ([]registry.
 // for every V1 capability — produces exactly the user's selection order,
 // unchanged. Kahn's algorithm, scanning in original order each pass for
 // full determinism.
+func capabilityIDs(caps []registry.Plugin) []string {
+	out := make([]string, len(caps))
+	for i, c := range caps {
+		out[i] = c.Manifest.CapabilityID
+	}
+	return out
+}
+
 func sortByDependencies(caps []registry.Plugin) ([]registry.Plugin, error) {
 	index := make(map[string]int, len(caps))
 	for i, c := range caps {
