@@ -60,14 +60,18 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      # A bare "distribution/homebrew/bootstrap.rb" (no leading ./) is
-      # ambiguous with brew's "user/repo/formula" tap shorthand — brew
-      # tried to clone a tap named distribution/homebrew and failed.
-      # An explicit relative path disambiguates it as a local file.
-      - name: Install formula
-        run: brew install --formula ./distribution/homebrew/bootstrap.rb
+      # Modern Homebrew rejects "brew install <bare formula file>"
+      # outright ("Homebrew requires formulae to be in a tap") — even
+      # an unambiguous relative path isn't enough. The supported way to
+      # test a formula file is to drop it into a throwaway local tap.
+      - name: Install formula via a local tap
+        run: |
+          set -euo pipefail
+          brew tap-new local/bootstrap
+          cp ./distribution/homebrew/bootstrap.rb "$(brew --repository local/bootstrap)/Formula/bootstrap.rb"
+          brew install local/bootstrap/bootstrap
       - name: Formula test block
-        run: brew test bootstrap
+        run: brew test local/bootstrap/bootstrap
       - name: Verify
         run: bootstrap version
 

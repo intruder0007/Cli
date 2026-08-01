@@ -4,7 +4,7 @@ PackageVersion: 0.2.0
 InstallerType: zip
 NestedInstallerType: portable
 NestedInstallerFiles:
-  - RelativeFilePath: bootstrap.exe
+  - RelativeFilePath: cli_v0.2.0_windows_amd64/bootstrap.exe
     PortableCommandAlias: bootstrap
 Installers:
   - Architecture: x64
