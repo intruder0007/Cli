@@ -40,9 +40,10 @@ func ThemeNames() []string {
 }
 
 // GetTheme looks up a theme by name, falling back to "default" if the
-// name is unknown or empty. noColor forces UseColor off regardless of
-// the theme's own default (minimal is already UseColor:false, so this
-// is a no-op for it).
+// name is unknown or empty. noColor forces both UseColor and UseIcons
+// off regardless of the theme's own defaults (glyphs like ❯/◉ are color
+// cues too — a plain terminal shouldn't show them either; minimal is
+// already UseColor:false/UseIcons:false, so this is a no-op for it).
 func GetTheme(name string, noColor bool) Theme {
 	t, ok := themeRegistry[name]
 	if !ok {
@@ -50,6 +51,7 @@ func GetTheme(name string, noColor bool) Theme {
 	}
 	if noColor {
 		t.UseColor = false
+		t.UseIcons = false
 	}
 	return t
 }

@@ -31,8 +31,10 @@ Six prompts, in order:
    template (e.g. Go + `HTTP API`) fails cleanly with a hint to run
    `bootstrap plugins list`, same as any other unmatched combination.
 5. **Capabilities** (multi-select, checkboxes) — `git-init`, `readme`,
-   `github-actions-ci`. Go-project-specific today; only offered
-   meaningfully alongside the Go template for now.
+   `github-actions-ci`. `git-init` and `readme` are language-agnostic;
+   `github-actions-ci` writes a Go workflow (`go build` + `go test`) and
+   refuses non-Go projects with a clear error, so it only makes sense
+   alongside the Go template.
 
 The CLI then resolves the matching template plugin, generates the project,
 applies each selected capability in the order chosen, and prints a success
@@ -102,6 +104,20 @@ capabilities: [git-init, readme, github-actions-ci]
   useful context to include in a bug report.
 - `bootstrap help` / `bootstrap <command> -h` — top-level and
   per-command help.
+
+## Exit codes
+
+- `0` — success (for `plugins validate`: the plugin directory is valid).
+- `1` — runtime failure: invalid answers (bad project name, unknown
+  theme, missing required fields), an unresolvable template or
+  capability, a plugin error (including a plugin that fails the
+  handshake), a target directory that already exists and is non-empty,
+  a missing/unreadable `--answers` file (or one that fails validation),
+  and `plugins validate` on an invalid plugin directory.
+- `2` — usage error: unknown command or flag, extra positional
+  arguments to `new`, or combining `--answers` with a positional
+  project name.
+- `130` — cancelled with Ctrl+C (interactive wizard only).
 
 ## Accessibility notes
 

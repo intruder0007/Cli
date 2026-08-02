@@ -13,9 +13,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
 )
+
+// sortedKeys returns the map's keys in ascending order.
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 type nodeRestAPITemplate struct{}
 
@@ -29,12 +40,15 @@ func (nodeRestAPITemplate) Generate(req sdk.GenerateRequest) (sdk.GenerateRespon
 	}
 
 	var written []string
-	for rel, content := range files {
+	// Iterate in sorted order so FilesWritten is deterministic — the
+	// engine may compare it against plugin-generated files (git-init
+	// lists its own FilesWritten), and map iteration order isn't stable.
+	for _, rel := range sortedKeys(files) {
 		full := filepath.Join(req.TargetDir, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 			return sdk.GenerateResponse{}, fmt.Errorf("creating directory for %s: %w", rel, err)
 		}
-		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(full, []byte(files[rel]), 0o644); err != nil {
 			return sdk.GenerateResponse{}, fmt.Errorf("writing %s: %w", rel, err)
 		}
 		written = append(written, rel)

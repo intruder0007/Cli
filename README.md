@@ -53,10 +53,11 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full workflow,
 
 ## Installation
 
-Every install method below produces a fully working `bootstrap` — see
-[ADR-0012](docs/architecture/adr/0012-universal-install-architecture.md):
-the binary embeds its own plugin set as a fallback, so it works
-correctly on its own regardless of how it got onto your machine.
+Every install method below delivers a binary built by the release
+pipeline — which stages the V1 plugin set into the binary itself via
+go:embed, so the binary works correctly on its own regardless of how it
+got onto your machine (see
+[ADR-0012](docs/architecture/adr/0012-universal-install-architecture.md)).
 
 ```sh
 # install script (Linux/macOS)
@@ -65,12 +66,16 @@ curl -fsSL https://raw.githubusercontent.com/intruder0007/Cli/main/install.sh | 
 # install script (Windows, PowerShell)
 iwr https://raw.githubusercontent.com/intruder0007/Cli/main/install.ps1 -useb | iex
 
-# go install (works out of the box — no manual plugin setup needed)
-go install github.com/intruder0007/Cli/cli@latest
-
 # or download a release archive directly:
 # https://github.com/intruder0007/Cli/releases
 ```
+
+`go install github.com/intruder0007/Cli/cli@latest` is **not yet
+recommended**: the embedded plugin set is staged at build time (the
+staged assets are gitignored), so a `go install`-produced binary has no
+plugin fallback and needs sibling `templates/`/`plugins/` directories —
+and the module needs `cli/vX.Y.Z` submodule tags before `@latest`
+resolves at all. See [`distribution/go/README.md`](distribution/go/README.md).
 
 No package manager is implemented yet for any ecosystem (npm, Homebrew,
 etc.) — see [`distribution/`](distribution/) for the design and status

@@ -61,19 +61,27 @@ package `2.0.0` launching `bootstrap v0.1.1` should say so in its
 `README`/`CHANGELOG`, so a user filing an issue can tell which `bootstrap`
 release they actually hit.
 
-## `go install` — mitigated by the embedded fallback (ADR-0012)
+## `go install` — pipeline-built binaries carry the fallback; `go install` itself doesn't yet
 
-`go install github.com/intruder0007/Cli/cli@latest` still compiles only
-the `cli` binary — no sibling plugin directories exist for it to find,
-and this protocol's "locate the real binary" step still doesn't apply
+`go install github.com/intruder0007/Cli/cli@latest` compiles only the
+`cli` binary — no sibling plugin directories exist for it to find, and
+this protocol's "locate the real binary" step still doesn't apply
 (there's no wrapper in the loop; the binary IS the resolved artifact).
-What's changed since ADR-0010: the `cli` binary now embeds the V1
-plugin set at build time (`cli/internal/embedded`) and self-extracts it
-to a version-scoped cache directory whenever no sibling plugin
-directories can be found at all — see
-[ADR-0012](adr/0012-universal-install-architecture.md). A `go
-install`-produced binary now works out of the box; no `CLI_PLUGIN_DIRS`
-workaround or separate archive download is required.
+Since ADR-0010: the `cli` binary embeds the V1 plugin set at build time
+(`cli/internal/embedded`) and self-extracts it to a version-scoped
+cache directory whenever no sibling plugin directories can be found at
+all — see
+[ADR-0012](adr/0012-universal-install-architecture.md) — so a binary
+built by `make build` or the release pipeline works out of the box with
+no `CLI_PLUGIN_DIRS` workaround.
+
+The honest caveat: the embedded assets are **staged at build time** into
+a gitignored directory (`cli/internal/embedded/assets/`), and only the
+Makefile/release pipeline do that staging. `go install` therefore still
+produces a binary *without* the embedded fallback, and the `cli`
+submodule needs `cli/vX.Y.Z` tags before `@latest` resolves at all —
+see [`distribution/go/README.md`](../../distribution/go/README.md) for
+the current status.
 
 ## Status
 
@@ -82,5 +90,7 @@ Wrappers are implemented and CI-verified for 7 of 8 planned ecosystems
 `distribution/<ecosystem>/README.md` for each one's status. **None are
 published** to a live registry; publishing is a separate,
 explicitly-confirmed step per ecosystem. The Go path (`go install`) is
-solved by the embedded fallback (ADR-0012). This contract is a Stable
-public API — see `docs/architecture/api-compatibility.md`.
+handled for pipeline-built binaries by the embedded fallback
+(ADR-0012); `go install` itself awaits submodule tags and build-time
+staging (see the section above). This contract is a Stable public API —
+see `docs/architecture/api-compatibility.md`.

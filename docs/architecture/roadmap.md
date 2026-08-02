@@ -48,9 +48,12 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   against real release assets, but none is published to a live registry
   — publishing needs either a credential (npm/PyPI/Cargo/Chocolatey) or
   a PR to a third-party repo (Homebrew/Scoop/Winget), each an
-  explicitly-confirmed separate step. `go install` works correctly out
-  of the box as of ADR-0012's embedded plugin fallback (see
-  `distribution/go/README.md`).
+  explicitly-confirmed separate step. `go install` of the `cli` module
+  still doesn't deliver the embedded plugin fallback (the staged plugin
+  assets are gitignored and only the build pipeline embeds them), and
+  the module needs `cli/vX.Y.Z` submodule tags before `@latest` resolves
+  at all — see `distribution/go/README.md`. Until then the release
+  archives and install scripts are the supported paths.
 - **Multi-version protocol negotiation.** The host supports exactly one
   wire-protocol version per release and rejects mismatches at the
   `plugin.initialize` handshake (ADR-0008); serving two protocol

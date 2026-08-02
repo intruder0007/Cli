@@ -32,6 +32,15 @@ jobs:
 type githubActionsCICapability struct{}
 
 func (githubActionsCICapability) Apply(req sdk.ApplyRequest) (sdk.ApplyResponse, error) {
+	// The workflow below is Go-only (setup-go, `go build`, `go test`).
+	// Fail loudly for other languages rather than write a workflow that
+	// can never be green in CI — the engine generates the template first,
+	// so this error surfaces after the project exists but before the
+	// workflow file is written.
+	if lang := req.Answers["language"]; lang != "" && lang != "go" {
+		return sdk.ApplyResponse{}, fmt.Errorf("github-actions-ci only supports Go projects (got language %q); pick a different capability or drop it", lang)
+	}
+
 	dir := filepath.Join(req.TargetDir, ".github", "workflows")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return sdk.ApplyResponse{}, fmt.Errorf("creating .github/workflows: %w", err)

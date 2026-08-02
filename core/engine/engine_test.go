@@ -84,6 +84,7 @@ type fakeResolver struct {
 	templateErr  error
 	capabilities map[string]registry.Plugin
 	capErrs      map[string]error
+	capCalls     []string // capability ids passed to ResolveCapability, in order
 }
 
 func (f *fakeResolver) ResolveTemplate(projectType, language, framework string) (registry.Plugin, error) {
@@ -91,6 +92,7 @@ func (f *fakeResolver) ResolveTemplate(projectType, language, framework string) 
 }
 
 func (f *fakeResolver) ResolveCapability(id string) (registry.Plugin, error) {
+	f.capCalls = append(f.capCalls, id)
 	if err, ok := f.capErrs[id]; ok {
 		return registry.Plugin{}, err
 	}
@@ -143,6 +145,31 @@ func TestRunFailsFastBeforeAnySideEffect(t *testing.T) {
 	}
 	if len(runner.applyCalls) != 0 {
 		t.Errorf("Apply was called for %v, want none — resolution must happen before any execution", runner.applyCalls)
+	}
+}
+
+func TestRunCollapsesDuplicateCapabilitySelections(t *testing.T) {
+	resolver := &fakeResolver{
+		template: registry.Plugin{Manifest: sdk.Manifest{Name: "tmpl"}},
+		capabilities: map[string]registry.Plugin{
+			"a": {Manifest: sdk.Manifest{Name: "a", CapabilityID: "a"}},
+			"b": {Manifest: sdk.Manifest{Name: "b", CapabilityID: "b"}},
+		},
+	}
+	runner := &fakeRunner{}
+	eng := New(resolver, runner)
+
+	// Duplicate ids in the selection must be collapsed (first occurrence
+	// wins) — both in resolution and in apply order — so the capability
+	// isn't run twice against the same target directory.
+	if _, err := eng.Run(t.TempDir(), validAnswers("a", "b", "a", "b")); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got := len(runner.applyCalls); got != 2 {
+		t.Errorf("Apply called %d times, want 2 (a and b once each), calls = %v", got, runner.applyCalls)
+	}
+	if got := len(resolver.capCalls); got != 2 {
+		t.Errorf("ResolveCapability called %d times, want 2 (one per unique id), ids = %v", got, resolver.capCalls)
 	}
 }
 

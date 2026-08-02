@@ -58,6 +58,21 @@ jobs:
             fi
           done
 
+      # make build runs the real staging pipeline (stage-embedded -> build
+      # cli with the plugin set embedded via go:embed) and produces the
+      # self-sufficient bin/bootstrap every release archive ships. The
+      # module-by-module steps above can't catch staging or go:embed
+      # problems, so the actual pipeline must be exercised too. Guarded on
+      # go.work existing, same as the module steps above (it only exists
+      # once the cli branch has merged). Leaves a dirty tree (staged
+      # assets + built binaries are gitignored) but CI never commits, so
+      # that's harmless.
+      - name: Build via Makefile (staged embedded pipeline)
+        run: |
+          if [ -f go.work ]; then
+            make build
+          fi
+
       # CONTRIBUTING.md documents this check; it must actually run.
       - name: Lint docs (markdownlint)
         run: npx --yes markdownlint-cli 'docs/**/*.md' 'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'CODE_OF_CONDUCT.md'

@@ -137,9 +137,16 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 // resolveOrderedCapabilities resolves every selected capability id
 // (fail-fast: no subprocess spawned yet, so a bad id is caught before
 // anything runs) and returns them ordered by any declared dependencies.
+// Duplicate ids in the selection are collapsed (first occurrence wins),
+// so `--capabilities git-init,git-init` runs the capability once.
 func (e *Engine) resolveOrderedCapabilities(capabilityIDs []string) ([]registry.Plugin, error) {
+	seen := make(map[string]bool, len(capabilityIDs))
 	caps := make([]registry.Plugin, 0, len(capabilityIDs))
 	for _, capID := range capabilityIDs {
+		if seen[capID] {
+			continue
+		}
+		seen[capID] = true
 		c, err := e.Registry.ResolveCapability(capID)
 		if err != nil {
 			return nil, err

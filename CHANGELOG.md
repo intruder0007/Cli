@@ -70,6 +70,26 @@ for how to add an entry.
   assets (package versions, download URLs, `extract_dir`, and
   checksums from the published `SHA256SUMS.txt`), re-verified against
   them in `distribution-verify.yml` CI. None are published yet.
+- Codebase audit (Phase F) fixes: `plugin.Host` now wires plugin
+  stderr through a new `Stderr` field, verifies the JSON-RPC response
+  id, treats `ok:false` handshakes as errors, bounds the shutdown call
+  by `ShutdownTimeout`, and logs finish failures; the engine collapses
+  duplicate capability selections; `bootstrap new` refuses non-empty
+  target directories and extra positional arguments (exit 2),
+  `--answers` + positional project name is rejected (exit 2),
+  `config set theme` surfaces config-load errors, `--no-color` now
+  also disables theme icons, the line-based wizard cancels cleanly on
+  Ctrl+C (exit 130, matching the TUI) and shows capability
+  descriptions, and `--answers` files are validated up front. The
+  templates return deterministic `FilesWritten`; `github-actions-ci`
+  refuses non-Go projects; `git-init` errors name the failing git
+  step. CI now runs `make build`. Docs corrected where they
+  overclaimed the `go install` path, the non-existent
+  `--non-interactive` flag, exit codes, and `go get` of the SDK.
+  See `docs/architecture/codebase-audit.md` for the full finding-by-
+  finding record.
+- `plugins validate -h` usage text expanded (what the check proves,
+  exit-code contract).
 
 ## [0.3.0] - 2026-08-02
 
@@ -87,8 +107,13 @@ for how to add an entry.
   the V1 plugin set at build time and self-extracts it to a
   version-scoped cache directory whenever no sibling
   `templates/`/`plugins/builtin/` directories can be found — closing
-  the `go install` gap ADR-0010 had left open. `go install
-  github.com/intruder0007/Cli/cli@latest` now works out of the box.
+  the bare-binary gap ADR-0010 had left open for binaries built by the
+  release pipeline (`make build`/release.yml stage the plugin assets
+  into the embed dir first). Note: a raw `go install
+  github.com/intruder0007/Cli/cli@latest` still produces a binary
+  without the embedded fallback (the staged assets are gitignored), and
+  the module has no `cli/vX.Y.Z` submodule tags yet — see
+  `distribution/go/README.md` for the honest status.
 - `install.sh`/`install.ps1` — one-line install scripts that resolve
   platform, verify the release archive's checksum, and put just the
   `bootstrap` binary on `PATH`.
