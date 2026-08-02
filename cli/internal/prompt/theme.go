@@ -1,9 +1,13 @@
 package prompt
 
 // Theme is a named set of rendering choices: whether to use color/icons,
-// and which glyphs menu.go's widgets use for the cursor and multi-select
-// checkboxes. A Theme is data, not behavior baked into the CLI — see
-// RegisterTheme.
+// which glyphs menu.go's widgets use for the cursor and multi-select
+// checkboxes, and the spinner frames spinner.go animates during a run.
+// A Theme is data, not behavior baked into the CLI — see RegisterTheme.
+// The semantic color helpers (Primary/Accent/Warn/Border) are the design
+// tokens the whole CLI renders with; a theme only chooses whether to
+// emit them at all (UseColor), so NO_COLOR/--no-color keeps working
+// regardless of which theme is active.
 type Theme struct {
 	Name     string
 	UseColor bool
@@ -13,6 +17,9 @@ type Theme struct {
 	Cursor string
 	// Checked/Unchecked are the multi-select checkbox glyphs.
 	Checked, Unchecked string
+	// Spinner frames animate the in-progress phase of a run (spinner.go).
+	// Empty means an ASCII fallback is used.
+	Spinner []string
 }
 
 var (
@@ -60,10 +67,12 @@ func init() {
 	RegisterTheme(Theme{
 		Name: "default", UseColor: true, UseIcons: true,
 		Cursor: "❯", Checked: "◉", Unchecked: "○",
+		Spinner: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 	})
 	RegisterTheme(Theme{
 		Name: "minimal", UseColor: false, UseIcons: false,
 		Cursor: ">", Checked: "[x]", Unchecked: "[ ]",
+		Spinner: []string{"|", "/", "-", "\\"},
 	})
 }
 
@@ -73,6 +82,20 @@ func (t Theme) color(code, s string) string {
 	}
 	return "\033[" + code + "m" + s + "\033[0m"
 }
+
+// Primary formats text in the brand color — the Lumo wordmark, section
+// headers, and the wizard's header lines.
+func (t Theme) Primary(s string) string { return t.color("1;36", s) }
+
+// Accent highlights interactive elements — progress arrows, next steps.
+func (t Theme) Accent(s string) string { return t.color("38;5;75", s) }
+
+// Warn flags a non-fatal condition that still deserves attention.
+func (t Theme) Warn(s string) string { return t.color("38;5;214", s) }
+
+// Border renders structural glyphs (tree branches, dividers) in a
+// quieter gray than the surrounding text.
+func (t Theme) Border(s string) string { return t.color("38;5;240", s) }
 
 // Success formats a success line. Every state has a text label — color
 // and icons are additive, never the only signal.
@@ -100,7 +123,7 @@ func (t Theme) Info(msg string) string {
 
 // Header formats a section header.
 func (t Theme) Header(msg string) string {
-	return t.color("1;36", msg)
+	return t.Primary(msg)
 }
 
 // Dim formats de-emphasized text (e.g. "(coming soon)" hints).

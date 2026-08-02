@@ -1,7 +1,7 @@
 # Go (`go install`) — binary yes, embedded fallback not yet
 
-`go install github.com/intruder0007/Cli/cli@latest` compiles and
-installs the `bootstrap` binary itself. Two things keep it from being a
+`go install github.com/intruder0007/Lumo/cli@latest` compiles and
+installs the `lumo` binary itself. Two things keep it from being a
 drop-in "works out of the box" install today:
 
 1. **Tags.** The `cli` directory is its own Go module
@@ -15,9 +15,9 @@ drop-in "works out of the box" install today:
    `Makefile`'s `stage-embedded`/`build` targets and the release
    pipeline (`.github/workflows/release.yml`) do that staging; `go
    install` has no hook for it. A `go install`-produced binary embeds
-   only the `.gitkeep` placeholder, so `bootstrap doctor` reports "no
-   plugin assets embedded", and `bootstrap new` works only when sibling
-   `templates/`/`plugins/builtin/` directories (or `CLI_PLUGIN_DIRS`)
+   only the `.gitkeep` placeholder, so `lumo doctor` reports "no
+   plugin assets embedded", and `lumo new` works only when sibling
+   `templates/`/`plugins/builtin/` directories (or `LUMO_PLUGIN_DIRS`)
    are present — the pre-ADR-0012 situation.
 
 **What does work out of the box:** every binary the release pipeline

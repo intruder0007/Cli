@@ -1,19 +1,19 @@
 #!/bin/sh
-# Installs the bootstrap CLI (github.com/intruder0007/Cli) for the
+# Installs the lumo CLI (github.com/intruder0007/Lumo) for the
 # current platform: resolves OS/arch, downloads the matching release
 # archive + SHA256SUMS.txt, verifies the checksum, and installs just the
-# bootstrap binary onto PATH. See docs/architecture/adr/0012-universal-install-architecture.md —
+# lumo binary onto PATH. See docs/architecture/adr/0012-universal-install-architecture.md —
 # the binary is self-sufficient (embeds its own plugin set as a
 # fallback), so this script never needs to preserve sibling directories
 # the way a package-manager formula extracting the whole archive does.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/intruder0007/Cli/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/intruder0007/Lumo/main/install.sh | sh
 #   VERSION=v0.2.0 INSTALL_DIR=/usr/local/bin sh install.sh   # pin a version / install dir
 
 set -eu
 
-REPO="intruder0007/Cli"
+REPO="intruder0007/Lumo"
 VERSION="${VERSION:-latest}"
 
 say() { printf '%s\n' "$*"; }
@@ -51,7 +51,7 @@ if [ "$VERSION" = "latest" ]; then
   [ -n "$VERSION" ] || die "could not resolve the latest release version"
 fi
 
-ARCHIVE="cli_${VERSION}_${OS}_${ARCH}.tar.gz"
+ARCHIVE="lumo_${VERSION}_${OS}_${ARCH}.tar.gz"
 BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 
 TMP_DIR="$(mktemp -d)"
@@ -74,7 +74,7 @@ say "Verifying checksum..."
 )
 
 tar -xzf "${TMP_DIR}/${ARCHIVE}" -C "$TMP_DIR"
-EXTRACTED_DIR="${TMP_DIR}/cli_${VERSION}_${OS}_${ARCH}"
+EXTRACTED_DIR="${TMP_DIR}/lumo_${VERSION}_${OS}_${ARCH}"
 
 if [ -n "${INSTALL_DIR:-}" ]; then
   DEST="$INSTALL_DIR"
@@ -82,12 +82,12 @@ else
   DEST="${HOME}/.local/bin"
 fi
 mkdir -p "$DEST"
-cp "${EXTRACTED_DIR}/bootstrap" "${DEST}/bootstrap"
-chmod +x "${DEST}/bootstrap"
+cp "${EXTRACTED_DIR}/lumo" "${DEST}/lumo"
+chmod +x "${DEST}/lumo"
 
-say "Installed bootstrap ${VERSION} to ${DEST}/bootstrap"
+say "Installed lumo ${VERSION} to ${DEST}/lumo"
 
 case ":$PATH:" in
-  *":${DEST}:"*) say "Run 'bootstrap new' to get started." ;;
+  *":${DEST}:"*) say "Run 'lumo new' to get started." ;;
   *) say "${DEST} is not on your PATH. Add it, e.g.:"; say "  export PATH=\"${DEST}:\$PATH\"" ;;
 esac

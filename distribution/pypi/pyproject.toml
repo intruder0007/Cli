@@ -3,18 +3,18 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bootstrap-cli"
-version = "0.3.0"
-description = "Thin launcher for the Cli developer bootstrap platform (github.com/intruder0007/Cli) — downloads and runs the real bootstrap binary for your platform."
+name = "lumo-cli"
+version = "1.0.0"
+description = "Thin launcher for the Lumo project scaffolding platform (github.com/intruder0007/Lumo) — downloads and runs the real lumo binary for your platform."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.8"
 
 [project.urls]
-Repository = "https://github.com/intruder0007/Cli"
+Repository = "https://github.com/intruder0007/Lumo"
 
 [project.scripts]
-bootstrap = "bootstrap_cli.__main__:main"
+lumo = "lumo_cli.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

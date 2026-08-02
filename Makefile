@@ -19,7 +19,7 @@ EMBED_DIR := cli/internal/embedded/assets
 # distribution methods (e.g. `go install`) that produce only the one
 # binary, no sibling directories.
 build: stage-embedded
-	go build -ldflags "$(LDFLAGS)" -o bin/bootstrap$(EXE) ./cli
+	go build -ldflags "$(LDFLAGS)" -o bin/lumo$(EXE) ./cli
 
 stage-embedded:
 	go build -o templates/go-rest-api/go-rest-api$(EXE) ./templates/go-rest-api
@@ -43,10 +43,10 @@ vet:
 	go vet $(MODULES)
 
 run: build
-	./bin/bootstrap$(EXE) new
+	./bin/lumo$(EXE) new
 
 clean:
-	rm -f bin/bootstrap$(EXE)
+	rm -f bin/lumo$(EXE)
 	rm -f templates/go-rest-api/go-rest-api$(EXE)
 	rm -f templates/node-rest-api/node-rest-api$(EXE)
 	rm -f plugins/builtin/git-init/git-init$(EXE)

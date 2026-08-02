@@ -3,41 +3,51 @@
 ## Interactive
 
 ```sh
-bootstrap new
+lumo new
 ```
 
-Running `bootstrap` with no arguments at all (including double-clicking
-the binary on Windows) is the same as `bootstrap new`.
+Running `lumo` with no arguments at all (including double-clicking
+the binary on Windows) is the same as `lumo new`.
 
 When run in a real terminal (stdin and stdout both TTYs), this is an
 arrow-key wizard: `↑`/`↓` (or vim-style `j`/`k`) move the highlight,
 `enter` confirms, `space` toggles a checkbox in the capabilities step,
-`Ctrl+C`/`Esc`/`q` cancels. When stdin/stdout aren't both real terminals
-(piped input, CI, scripts), it falls back automatically to plain
-numbered-list prompts — see ADR-0007.
+`Ctrl+C`/`q` cancels. You can also **type to filter**: any letters
+narrow the list by fuzzy subsequence match (e.g. `rbapi` finds
+"REST API (node:http)"), `backspace` edits the filter, and `esc`
+clears the filter first — cancelling only on a second `esc` (or
+`Ctrl+C`/`q`). The available keys are shown in a hint line under every
+menu. When stdin/stdout aren't both real terminals (piped input, CI,
+scripts), it falls back automatically to plain numbered-list prompts —
+see ADR-0007.
 
-Six prompts, in order:
+Up to six prompts, in order (every menu is built from the plugins
+actually installed — the wizard only offers what's discoverable, and
+each step's options are filtered by the previous answers):
 
 0. **Project name** — typed.
 1. **Theme** — `default` (color + icons) or `minimal` (plain text,
    `NO_COLOR`/screen-reader friendly). Whatever you pick here is
-   **persisted** (`bootstrap config get theme`) and offered as the
+   **persisted** (`lumo config get theme`) and offered as the
    default next time.
-2. **Project type** — only `Backend Service` is selectable in V1; other
-   options are shown as "(coming soon)".
-3. **Language** — `Go` or `Node.js` are selectable in V1 (see
-   [ADR-0009](../architecture/adr/0009-second-template-cross-language.md) —
-   the first two real proof points of "cross-language").
-4. **Framework** — `REST API (net/http)` (Go) or `HTTP API (node:http)`
-   (Node.js) are selectable in V1. The framework list isn't filtered by
-   the language you picked — choosing a combination with no matching
-   template (e.g. Go + `HTTP API`) fails cleanly with a hint to run
-   `bootstrap plugins list`, same as any other unmatched combination.
-5. **Capabilities** (multi-select, checkboxes) — `git-init`, `readme`,
-   `github-actions-ci`. `git-init` and `readme` are language-agnostic;
-   `github-actions-ci` writes a Go workflow (`go build` + `go test`) and
-   refuses non-Go projects with a clear error, so it only makes sense
-   alongside the Go template.
+2. **Project type** — the distinct project types of the installed
+   template plugins (e.g. `Backend Service`), in discovery order.
+3. **Language** — the languages available for the project type you
+   picked (e.g. `Go`, `Node.js`; see
+   [ADR-0009](../architecture/adr/0009-second-template-cross-language.md)).
+4. **Framework** — the templates available for that project type +
+   language pair, by their display names (e.g. `Go REST API Service`).
+   The list is filtered by your choices, so a combination with no
+   matching template can't be picked in the first place.
+5. **Capabilities** (multi-select, checkboxes) — the installed
+   capability plugins (e.g. `git-init`, `readme`); the step is skipped
+   entirely when none are installed. `github-actions-ci` writes a Go
+   workflow (`go build` + `go test`) and refuses non-Go projects with a
+   clear error, so it only makes sense alongside the Go template.
+
+If no template plugins are discoverable at all, the wizard fails fast
+with a hint to run `lumo plugins list` / check `LUMO_PLUGIN_DIRS`
+instead of asking questions nothing could resolve.
 
 The CLI then resolves the matching template plugin, generates the project,
 applies each selected capability in the order chosen, and prints a success
@@ -46,7 +56,7 @@ applied), the files written, and next steps (e.g. `cd my-project && go
 run .` or `cd my-project && npm start`). A failure prints an error screen
 with a recovery hint where one is known.
 
-Pass `--verbose` (or `-v`) to `bootstrap new` to print diagnostic
+Pass `--verbose` (or `-v`) to `lumo new` to print diagnostic
 logging — plugin spawn, handshake result, timing, file counts — to
 stderr as the run progresses. Useful when a run is slow or fails and the
 error screen's hint isn't enough context.
@@ -57,7 +67,7 @@ For scripting, CI, or testing — this path is unaffected by the wizard's
 theme persistence (never reads or writes the persisted theme):
 
 ```sh
-bootstrap new my-project \
+lumo new my-project \
   --theme minimal \
   --project-type backend-service \
   --language go \
@@ -68,7 +78,7 @@ bootstrap new my-project \
 or, from a file:
 
 ```sh
-bootstrap new --answers answers.yaml
+lumo new --answers answers.yaml
 ```
 
 ```yaml
@@ -83,29 +93,29 @@ capabilities: [git-init, readme, github-actions-ci]
 
 ## Other commands
 
-- `bootstrap plugins list` — lists discovered template and capability
+- `lumo plugins list` — lists discovered template and capability
   plugins (name, kind, version) from the local `templates/`/`plugins/`
   directories.
-- `bootstrap plugins validate <plugin-dir>` — checks a plugin directory
+- `lumo plugins validate <plugin-dir>` — checks a plugin directory
   before shipping it: `plugin.json` must parse and pass
   `Manifest.Validate()`, and the entrypoint binary must spawn and pass
   the `plugin.initialize` identity/protocol cross-check against the
   on-disk manifest (the same fail-fast surface `new` uses, ADR-0008 —
   a stale or swapped binary fails here). Exits 0 when valid, 1 when
   not. The pre-release check for plugin/template authors.
-- `bootstrap config get theme` / `bootstrap config set theme <name>` —
+- `lumo config get theme` / `lumo config set theme <name>` —
   read or explicitly set the persisted theme, without running the
   wizard.
-- `bootstrap doctor` — runs local health checks (plugin directory
+- `lumo doctor` — runs local health checks (plugin directory
   resolution, manifest validity, whether this binary has embedded
   fallback plugin assets and whether they're currently in use — see
   [ADR-0012](../architecture/adr/0012-universal-install-architecture.md))
   and prints a pass/fail summary with a recovery hint. Spawns no plugin
   subprocess — discovery only.
-- `bootstrap version` — prints the CLI version, Go runtime version, and
-  OS/arch (e.g. `bootstrap version v0.2.0 (go1.22.5, windows/amd64)`) —
+- `lumo version` — prints the CLI version, Go runtime version, and
+  OS/arch (e.g. `lumo version v1.0.0 (go1.26.5, windows/amd64)`) —
   useful context to include in a bug report.
-- `bootstrap help` / `bootstrap <command> -h` — top-level and
+- `lumo help` / `lumo <command> -h` — top-level and
   per-command help.
 
 ## Exit codes
@@ -130,4 +140,6 @@ capabilities: [git-init, readme, github-actions-ci]
   text label — color/icons are additive, never the only signal.
 - The arrow-key wizard is purely additive: anything it can do, the
   fallback line-based wizard and the non-interactive flags can also do —
-  no functionality requires a fancy terminal.
+  no functionality requires a fancy terminal. Type-ahead filtering is a
+  navigation convenience only: every option stays selectable with the
+  arrow keys and enter in both wizard modes.

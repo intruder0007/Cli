@@ -10,7 +10,7 @@ for the full wire contract this implements.
 ```go
 package main
 
-import "github.com/intruder0007/Cli/sdk/go/sdk"
+import "github.com/intruder0007/Lumo/sdk/go/sdk"
 
 type myCapability struct{}
 
@@ -53,7 +53,7 @@ Before packaging a plugin for release (or opening a PR that adds one),
 run the pre-release check:
 
 ```sh
-bootstrap plugins validate plugins/builtin/my-capability
+lumo plugins validate plugins/builtin/my-capability
 ```
 
 This proves the directory's `plugin.json` parses and passes

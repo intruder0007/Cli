@@ -1,7 +1,7 @@
 # Public API compatibility
 
 Implements [ADR-0013](adr/0013-api-compatibility.md). This is the
-single source of truth for what counts as a public API in Cli, what
+single source of truth for what counts as a public API in Lumo, what
 stability each surface is guaranteed at, and what versioning rules
 apply when any of them changes. Contributors extending the platform
 must be able to rely on exactly what is written here.
@@ -11,8 +11,8 @@ must be able to rely on exactly what is written here.
 | Surface | Location | Stability | Since |
 |---|---|---|---|
 | Plugin wire protocol | `docs/architecture/plugin-protocol.md` | **Stable** | v0.2.0 (ADR-0008 hardening) |
-| Go SDK (`sdk/go`) | `github.com/intruder0007/Cli/sdk/go/sdk` | **Stable** | v0.3.0 |
-| CLI command surface | `bootstrap new/plugins/config/doctor/version/help` — `docs/cli/usage.md` | **Stable** | v0.2.0 |
+| Go SDK (`sdk/go`) | `github.com/intruder0007/Lumo/sdk/go/sdk` | **Stable** | v0.3.0 |
+| CLI command surface | `lumo new/plugins/config/doctor/version/help` — `docs/cli/usage.md` | **Stable** | v0.2.0 |
 | Distribution wrapper contract | `docs/architecture/distribution-protocol.md` | **Stable** | v0.3.0 |
 | Theme API | `cli/internal/prompt` (`RegisterTheme`, `GetTheme`, `Theme`) | **Experimental (internal)** | v0.2.0 |
 | `core` packages (`registry`, `plugin`, `engine`, `config`, `diag`) | Go modules `core/*` | **Experimental (internal)** | v0.1.0 |

@@ -39,11 +39,11 @@ func TestHasAnyPluginTrueWhenManifestPresent(t *testing.T) {
 }
 
 // TestPluginDirsOverrideSkipsFallback verifies that an explicit
-// CLI_PLUGIN_DIRS always wins, even pointing at an empty directory —
+// LUMO_PLUGIN_DIRS always wins, even pointing at an empty directory —
 // the embedded fallback must never silently override deliberate intent.
 func TestPluginDirsOverrideSkipsFallback(t *testing.T) {
 	empty := t.TempDir()
-	t.Setenv("CLI_PLUGIN_DIRS", empty)
+	t.Setenv("LUMO_PLUGIN_DIRS", empty)
 
 	dirs := pluginDirs()
 	if len(dirs) != 1 || dirs[0] != empty {
@@ -59,7 +59,7 @@ func TestEmbeddedCacheDirIsVersionScoped(t *testing.T) {
 	if filepath.Base(dir) != version {
 		t.Fatalf("expected cache dir %q to end with the current version %q", dir, version)
 	}
-	if filepath.Base(filepath.Dir(dir)) != "bootstrap" {
-		t.Fatalf("expected cache dir %q to be under a 'bootstrap' directory", dir)
+	if filepath.Base(filepath.Dir(dir)) != "lumo" {
+		t.Fatalf("expected cache dir %q to be under a 'lumo' directory", dir)
 	}
 }

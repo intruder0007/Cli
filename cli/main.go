@@ -1,4 +1,4 @@
-// Command bootstrap is the Cli interactive/non-interactive wizard. See
+// Command lumo is the Lumo interactive/non-interactive wizard. See
 // docs/cli/usage.md and ADR-0007.
 package main
 
@@ -10,14 +10,14 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/intruder0007/Cli/cli/internal/embedded"
-	"github.com/intruder0007/Cli/cli/internal/prompt"
-	"github.com/intruder0007/Cli/core/config"
-	"github.com/intruder0007/Cli/core/diag"
-	"github.com/intruder0007/Cli/core/engine"
-	"github.com/intruder0007/Cli/core/plugin"
-	"github.com/intruder0007/Cli/core/registry"
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	"github.com/intruder0007/Lumo/cli/internal/embedded"
+	"github.com/intruder0007/Lumo/cli/internal/prompt"
+	"github.com/intruder0007/Lumo/core/config"
+	"github.com/intruder0007/Lumo/core/diag"
+	"github.com/intruder0007/Lumo/core/engine"
+	"github.com/intruder0007/Lumo/core/plugin"
+	"github.com/intruder0007/Lumo/core/registry"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 // version is overridden at build time via:
@@ -30,12 +30,12 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
-		// No command given (e.g. double-clicking bootstrap.exe, or typing
-		// `bootstrap` at a shell): start the interactive wizard — the
+		// No command given (e.g. double-clicking lumo.exe, or typing
+		// `lumo` at a shell): start the interactive wizard — the
 		// intuitive behavior for personal use. Under piped/non-terminal
 		// stdin the wizard's line fallback hits EOF and fails with
 		// "project name is required" (exit 1); scripts should always pass
-		// a command. `bootstrap help` still prints the command reference.
+		// a command. `lumo help` still prints the command reference.
 		cmdNew(nil)
 		return
 	}
@@ -50,7 +50,7 @@ func main() {
 	case "doctor":
 		cmdDoctor(os.Args[2:])
 	case "version":
-		fmt.Printf("bootstrap version %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("lumo version %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	case "-h", "--help", "help":
 		fmt.Println(prompt.HelpText)
 	default:
@@ -60,26 +60,26 @@ func main() {
 }
 
 // pluginDirs returns the local directories the registry scans: an
-// explicit CLI_PLUGIN_DIRS override (os.PathListSeparator-delimited, for
+// explicit LUMO_PLUGIN_DIRS override (os.PathListSeparator-delimited, for
 // installed binaries or tests where neither the executable's directory
 // nor the working directory is the repo root) takes priority, then
 // directories relative to the running executable, then the current
-// working directory (matching a repo-root `./bin/bootstrap new` dev
+// working directory (matching a repo-root `./bin/lumo new` dev
 // workflow). Deduplicated by absolute path, since the executable's
 // directory and the working directory are the same thing for the most
 // common real usage — cd into an extracted release archive and run
-// ./bootstrap — which would otherwise register every plugin twice.
+// ./lumo — which would otherwise register every plugin twice.
 //
 // If none of those candidates actually contain a plugin (e.g. a bare
 // `go install`-produced binary, with no sibling directories at all), the
 // V1 plugin set embedded into this binary at build time (see
 // cli/internal/embedded) is self-extracted to a version-scoped cache
 // directory and appended as a last-resort fallback — see ADR-0012. An
-// explicit CLI_PLUGIN_DIRS override always wins and skips this fallback
+// explicit LUMO_PLUGIN_DIRS override always wins and skips this fallback
 // entirely, on the theory that an explicit override reflects deliberate
 // intent, even if it happens to point somewhere empty.
 func pluginDirs() []string {
-	if override := os.Getenv("CLI_PLUGIN_DIRS"); override != "" {
+	if override := os.Getenv("LUMO_PLUGIN_DIRS"); override != "" {
 		return dedupeAbs(strings.Split(override, string(os.PathListSeparator)))
 	}
 
@@ -133,7 +133,7 @@ func hasAnyPlugin(dirs []string) bool {
 }
 
 // embeddedCacheDir returns the version-scoped directory the embedded
-// plugin fallback extracts to (os.UserCacheDir()/bootstrap/<version>/,
+// plugin fallback extracts to (os.UserCacheDir()/lumo/<version>/,
 // mirroring cli/internal/prompt/config.go's use of os.UserConfigDir()
 // for the same kind of per-user, per-OS standard directory). Scoping by
 // version means an upgrade can never serve stale plugins from a
@@ -143,7 +143,7 @@ func embeddedCacheDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, "bootstrap", version), nil
+	return filepath.Join(base, "lumo", version), nil
 }
 
 // embeddedFallbackDir extracts (if needed) and returns the embedded
@@ -195,9 +195,35 @@ func splitCSV(s string) []string {
 	return out
 }
 
+// wizardSpecFromDiscovery reduces discovered plugins to the plain data
+// the wizard renders from (prompt.WizardSpec) — the registry-driven
+// replacement for the old hardcoded option lists, so the wizard always
+// offers exactly what's installed (see ADR-0007 and
+// docs/architecture/roadmap.md).
+func wizardSpecFromDiscovery(plugins []registry.Plugin) prompt.WizardSpec {
+	var spec prompt.WizardSpec
+	for _, p := range plugins {
+		switch p.Manifest.Kind {
+		case "template":
+			spec.Templates = append(spec.Templates, prompt.TemplateSpec{
+				ProjectType: p.Manifest.ProjectType,
+				Language:    p.Manifest.Language,
+				Framework:   p.Manifest.Framework,
+				DisplayName: p.Manifest.DisplayName,
+			})
+		case "capability":
+			spec.Capabilities = append(spec.Capabilities, prompt.CapabilitySpec{
+				ID:          p.Manifest.CapabilityID,
+				DisplayName: p.Manifest.DisplayName,
+			})
+		}
+	}
+	return spec
+}
+
 // extractProjectName pulls the positional project-name argument out of
 // args regardless of where it appears relative to flags (docs/cli/usage.md
-// documents "bootstrap new my-project --theme ..."), since the stdlib
+// documents "lumo new my-project --theme ..."), since the stdlib
 // flag package stops parsing at the first non-flag token and would
 // otherwise silently swallow every flag after a leading positional arg.
 func extractProjectName(args []string, boolFlags map[string]bool) (string, []string) {
@@ -235,7 +261,7 @@ func cmdNew(args []string) {
 
 	fs := flag.NewFlagSet("new", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: bootstrap new [project-name] [flags]
+		fmt.Fprintln(os.Stderr, `usage: lumo new [project-name] [flags]
 
 Generates a new project. With no flags and no --answers, runs the
 interactive wizard. Flags below make it non-interactive.`)
@@ -293,7 +319,18 @@ interactive wizard. Flags below make it non-interactive.`)
 			bannerTheme = cfg.Theme
 		}
 		prompt.Banner(os.Stdout, prompt.GetTheme(bannerTheme, *noColor || noColorEnv))
-		a, err = prompt.RunWizard(os.Stdout)
+
+		// The wizard's menus are built from what's actually installed
+		// (registry-driven — see prompt.WizardSpec), so discovery runs
+		// first and a discovery failure is fatal before any question is
+		// asked.
+		reg := registry.New(pluginDirs()...)
+		discovered, discoverErr := reg.Discover()
+		if discoverErr != nil {
+			prompt.ErrorScreen(os.Stdout, prompt.GetTheme(bannerTheme, *noColor || noColorEnv), discoverErr)
+			os.Exit(1)
+		}
+		a, err = prompt.RunWizard(os.Stdout, wizardSpecFromDiscovery(discovered))
 	}
 
 	t := prompt.GetTheme(a.Theme, *noColor || noColorEnv)
@@ -314,7 +351,7 @@ interactive wizard. Flags below make it non-interactive.`)
 	}
 
 	// Refuse to generate into a directory that already has content —
-	// plugins write files unconditionally, so running `bootstrap new
+	// plugins write files unconditionally, so running `lumo new
 	// existing-project` (or re-running it) would silently overwrite.
 	if info, statErr := os.Stat(targetDir); statErr == nil {
 		if !info.IsDir() {
@@ -352,7 +389,38 @@ interactive wizard. Flags below make it non-interactive.`)
 	eng := engine.New(reg, host)
 	eng.Logger = logger
 
+	// A one-line plan of what will be created, then one line (or, on a
+	// terminal, a live spinner) per phase as the run progresses — see
+	// spinner.go. The same output works in CI and under pipes: it
+	// degrades to plain arrow lines with no escape codes.
+	plan := fmt.Sprintf("Creating %s — %s · %s · %s", a.ProjectName, a.ProjectType, a.Language, a.Framework)
+	if len(a.Capabilities) > 0 {
+		plan += " · " + strings.Join(a.Capabilities, ", ")
+	}
+	arrow := "→"
+	if !t.UseIcons {
+		arrow = "-"
+	}
+	fmt.Fprintln(os.Stdout, "  "+t.Accent(arrow)+" "+plan)
+
+	var sp *prompt.Spinner
+	eng.Progress = func(phase string, done bool) {
+		if done {
+			if sp != nil {
+				sp.Finish(true)
+			}
+			return
+		}
+		if sp == nil {
+			sp = prompt.NewSpinner(os.Stdout, t)
+		}
+		sp.Start(phase)
+	}
+
 	summary, err := eng.Run(targetDir, a)
+	if sp != nil {
+		sp.Finish(err == nil)
+	}
 	if err != nil {
 		prompt.ErrorScreen(os.Stdout, t, err)
 		os.Exit(1)
@@ -378,13 +446,13 @@ func cmdPlugins(args []string) {
 }
 
 func pluginsUsage() {
-	fmt.Fprintln(os.Stderr, `usage: bootstrap plugins list
-       bootstrap plugins validate <plugin-dir>`)
+	fmt.Fprintln(os.Stderr, `usage: lumo plugins list
+       lumo plugins validate <plugin-dir>`)
 }
 
 func cmdPluginsList(args []string) {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: bootstrap plugins list") }
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: lumo plugins list") }
 	fs.Parse(args)
 
 	reg := registry.New(pluginDirs()...)
@@ -414,7 +482,7 @@ func cmdPluginsList(args []string) {
 func cmdPluginsValidate(args []string) {
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: bootstrap plugins validate <plugin-dir>
+		fmt.Fprintln(os.Stderr, `usage: lumo plugins validate <plugin-dir>
 
 Checks a plugin directory before shipping it: plugin.json must parse
 and pass Manifest.Validate(), and the entrypoint binary must spawn and
@@ -482,7 +550,7 @@ func printEmbeddedStatus(t prompt.Theme, dirs []string) {
 // fail-fast surface `plugins list` uses.
 func cmdDoctor(args []string) {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: bootstrap doctor") }
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: lumo doctor") }
 	fs.Parse(args)
 
 	t := prompt.GetTheme("default", os.Getenv("NO_COLOR") != "")
@@ -533,13 +601,13 @@ func cmdDoctor(args []string) {
 		return
 	}
 	fmt.Println(t.Failure("doctor: found issues"))
-	fmt.Println(t.Dim("  hint: check plugin.json files against docs/plugins/authoring.md / docs/templates/authoring.md, or set CLI_PLUGIN_DIRS to point at the right directories."))
+	fmt.Println(t.Dim("  hint: check plugin.json files against docs/plugins/authoring.md / docs/templates/authoring.md, or set LUMO_PLUGIN_DIRS to point at the right directories."))
 	os.Exit(1)
 }
 
 func configUsage() {
-	fmt.Fprintln(os.Stderr, `usage: bootstrap config get theme
-       bootstrap config set theme <default|minimal>`)
+	fmt.Fprintln(os.Stderr, `usage: lumo config get theme
+       lumo config set theme <default|minimal>`)
 }
 
 func cmdConfig(args []string) {

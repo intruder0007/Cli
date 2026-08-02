@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 // Plugin pairs a discovered manifest with the absolute path to its
@@ -68,7 +68,7 @@ func New(dirs ...string) *Registry {
 // Discover scans all configured directories and returns every *valid*
 // plugin found. Manifests that fail to parse or fail Validate() are
 // skipped, not errored on — use DiscoverWithIssues to see what was
-// skipped and why (e.g. for `bootstrap plugins list` diagnostics).
+// skipped and why (e.g. for `lumo plugins list` diagnostics).
 func (r *Registry) Discover() ([]Plugin, error) {
 	plugins, _, err := r.discover()
 	return plugins, err
@@ -153,7 +153,7 @@ func loadPluginDir(pluginDir string) (plugin Plugin, issue *DiscoveryIssue, ok b
 // entrypoint is resolved the same way discovery would. ok is false when
 // pluginDir isn't a plugin directory at all (no plugin.json) — same
 // semantics as discovery's skip. This is the single-directory version
-// of the discovery path, used by `bootstrap plugins validate <dir>`.
+// of the discovery path, used by `lumo plugins validate <dir>`.
 func LoadPluginDir(pluginDir string) (plugin Plugin, ok bool, err error) {
 	p, issue, ok := loadPluginDir(pluginDir)
 	if issue != nil {

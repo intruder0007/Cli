@@ -8,7 +8,7 @@ import (
 	"regexp"
 )
 
-// Answers is the full set of wizard answers for one "bootstrap new" run.
+// Answers is the full set of wizard answers for one "lumo new" run.
 type Answers struct {
 	ProjectName  string
 	Theme        string   // "default" | "minimal"

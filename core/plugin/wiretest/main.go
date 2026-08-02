@@ -6,7 +6,7 @@
 package main
 
 import (
-	"github.com/intruder0007/Cli/sdk/go/sdk"
+	"github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 type plugin struct{}

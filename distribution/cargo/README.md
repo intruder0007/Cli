@@ -3,7 +3,7 @@
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 
 Still the least natural fit of the 8 (Cargo is source-first, and
-`bootstrap` isn't Rust source) — built anyway since it was in scope, but
+`lumo` isn't Rust source) — built anyway since it was in scope, but
 flagged as the most likely to be dropped first if this project has to
 prioritize.
 
@@ -17,11 +17,11 @@ time, resolves the target platform from Cargo's own
 either), shells out to `tar` to extract (same Windows bsdtar-by-full-path
 fix as `distribution/npm/scripts/postinstall.js`), and bakes the final
 binary path into the compiled shim via `cargo:rustc-env`. `src/main.rs`
-reads it back through `env!("BOOTSTRAP_BIN_PATH")` and execs it.
+reads it back through `env!("LUMO_BIN_PATH")` and execs it.
 
 **Verified in CI** (`.github/workflows/distribution-verify.yml`, `cargo`
 job, `ubuntu-latest`, Rust preinstalled): `cargo install --path
-distribution/cargo` followed by a real `bootstrap version` invocation.
+distribution/cargo` followed by a real `lumo version` invocation.
 Not verified locally — Rust/Cargo aren't installed in this repo's own
 dev environment.
 

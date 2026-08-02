@@ -2,11 +2,12 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
-	"github.com/intruder0007/Cli/core/config"
-	"github.com/intruder0007/Cli/core/registry"
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	"github.com/intruder0007/Lumo/core/config"
+	"github.com/intruder0007/Lumo/core/registry"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 func capPlugin(id string, dependsOn ...string) registry.Plugin {
@@ -114,11 +115,97 @@ func (f *fakeRunner) Apply(entrypointPath, expectedName, expectedProtocolVersion
 	return sdk.ApplyResponse{}, nil
 }
 
+// failRunner fails every Apply, for testing failure-path progress
+// reporting.
+type failRunner struct{}
+
+func (f *failRunner) Generate(entrypointPath, expectedName, expectedProtocolVersion string, req sdk.GenerateRequest) (sdk.GenerateResponse, error) {
+	return sdk.GenerateResponse{FilesWritten: []string{"go.mod"}}, nil
+}
+
+func (f *failRunner) Apply(entrypointPath, expectedName, expectedProtocolVersion string, req sdk.ApplyRequest) (sdk.ApplyResponse, error) {
+	return sdk.ApplyResponse{}, errors.New("apply failed")
+}
+
 func validAnswers(caps ...string) config.Answers {
 	return config.Answers{
 		ProjectName: "demo", Theme: "default",
 		ProjectType: "backend-service", Language: "go", Framework: "rest-api",
 		Capabilities: caps,
+	}
+}
+
+func TestRunReportsProgressPhases(t *testing.T) {
+	resolver := &fakeResolver{
+		template: registry.Plugin{Manifest: sdk.Manifest{Name: "tmpl"}},
+		capabilities: map[string]registry.Plugin{
+			"a": {Manifest: sdk.Manifest{Name: "a", CapabilityID: "a"}},
+			"b": {Manifest: sdk.Manifest{Name: "b", CapabilityID: "b"}},
+		},
+	}
+	runner := &fakeRunner{}
+	eng := New(resolver, runner)
+
+	var events []string
+	eng.Progress = func(phase string, done bool) {
+		events = append(events, fmt.Sprintf("%s:%v", phase, done))
+	}
+
+	if _, err := eng.Run(t.TempDir(), validAnswers("a", "b")); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	want := []string{
+		"generating template tmpl:false",
+		"generating template tmpl:true",
+		"applying capability a:false",
+		"applying capability a:true",
+		"applying capability b:false",
+		"applying capability b:true",
+	}
+	if len(events) != len(want) {
+		t.Fatalf("progress events = %v, want %v", events, want)
+	}
+	for i := range want {
+		if events[i] != want[i] {
+			t.Fatalf("progress event %d = %q, want %q (full: %v)", i, events[i], want[i], events)
+		}
+	}
+}
+
+func TestRunProgressStopsOnFailure(t *testing.T) {
+	resolver := &fakeResolver{
+		template: registry.Plugin{Manifest: sdk.Manifest{Name: "tmpl"}},
+		capabilities: map[string]registry.Plugin{
+			"a": {Manifest: sdk.Manifest{Name: "a", CapabilityID: "a"}},
+		},
+	}
+	runner := &failRunner{}
+	eng := New(resolver, runner)
+
+	var events []string
+	eng.Progress = func(phase string, done bool) {
+		events = append(events, fmt.Sprintf("%s:%v", phase, done))
+	}
+
+	if _, err := eng.Run(t.TempDir(), validAnswers("a")); err == nil {
+		t.Fatal("Run with a failing Apply should error, got nil")
+	}
+
+	// The failing phase reports its start but never its completion —
+	// done=true is success-only.
+	want := []string{
+		"generating template tmpl:false",
+		"generating template tmpl:true",
+		"applying capability a:false",
+	}
+	if len(events) != len(want) {
+		t.Fatalf("progress events = %v, want %v", events, want)
+	}
+	for i := range want {
+		if events[i] != want[i] {
+			t.Fatalf("progress event %d = %q, want %q (full: %v)", i, events[i], want[i], events)
+		}
 	}
 }
 

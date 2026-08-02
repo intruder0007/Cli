@@ -74,7 +74,7 @@ Rules:
    how to build it, and the minimum supported version of the SDK's
    own ecosystem.
 3. An SDK is considered **done** only when its clean-machine install
-   and `bootstrap new` round-trip is verified in CI — the same bar the
+   and `lumo new` round-trip is verified in CI — the same bar the
    distribution wrappers already meet (`distribution-verify.yml`).
 
 ## Transport layer

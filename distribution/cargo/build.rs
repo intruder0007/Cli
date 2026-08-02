@@ -1,9 +1,9 @@
 // Runs at `cargo build`/`cargo install` time: resolves the target
 // platform, downloads the matching release archive (skipping the
 // download if a version-scoped cache already has it), verifies it
-// against SHA256SUMS.txt, extracts the bootstrap binary, and bakes its
+// against SHA256SUMS.txt, extracts the lumo binary, and bakes its
 // final path into the compiled shim via cargo:rustc-env — read back by
-// src/main.rs through env!("BOOTSTRAP_BIN_PATH"). See
+// src/main.rs through env!("LUMO_BIN_PATH"). See
 // docs/architecture/distribution-protocol.md.
 
 use std::env;
@@ -11,7 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const REPO: &str = "intruder0007/Cli";
+const REPO: &str = "intruder0007/Lumo";
 const VERSION: &str = "v0.3.0"; // tracks this wrapper's own package version
 
 fn target_pair() -> (String, String) {
@@ -21,12 +21,12 @@ fn target_pair() -> (String, String) {
         "linux" => "linux",
         "macos" => "darwin",
         "windows" => "windows",
-        other => panic!("bootstrap-cli: unsupported target OS: {other}"),
+        other => panic!("lumo-cli: unsupported target OS: {other}"),
     };
     let goarch = match arch.as_str() {
         "x86_64" => "amd64",
         "aarch64" => "arm64",
-        other => panic!("bootstrap-cli: unsupported target arch: {other}"),
+        other => panic!("lumo-cli: unsupported target arch: {other}"),
     };
     (goos.to_string(), goarch.to_string())
 }
@@ -38,15 +38,15 @@ fn cache_dir(goos: &str, goarch: &str) -> PathBuf {
         format!("{}/.cache", env::var("HOME").expect("HOME not set"))
     };
     PathBuf::from(base)
-        .join("bootstrap-cli")
+        .join("lumo-cli")
         .join(VERSION)
         .join(format!("{goos}_{goarch}"))
 }
 
 fn run(cmd: &mut Command) {
-    let status = cmd.status().unwrap_or_else(|e| panic!("bootstrap-cli: failed to run {cmd:?}: {e}"));
+    let status = cmd.status().unwrap_or_else(|e| panic!("lumo-cli: failed to run {cmd:?}: {e}"));
     if !status.success() {
-        panic!("bootstrap-cli: command failed: {cmd:?}");
+        panic!("lumo-cli: command failed: {cmd:?}");
     }
 }
 
@@ -68,7 +68,7 @@ fn verify_checksum(archive_name: &str, archive_path: &Path, sums_path: &Path) {
     let expected = sums
         .lines()
         .find(|l| l.trim_end().ends_with(archive_name))
-        .unwrap_or_else(|| panic!("bootstrap-cli: no checksum entry for {archive_name}"))
+        .unwrap_or_else(|| panic!("lumo-cli: no checksum entry for {archive_name}"))
         .split_whitespace()
         .next()
         .unwrap()
@@ -100,27 +100,27 @@ fn verify_checksum(archive_name: &str, archive_path: &Path, sums_path: &Path) {
     };
 
     if actual != expected {
-        panic!("bootstrap-cli: checksum mismatch for {archive_name}: expected {expected}, got {actual}");
+        panic!("lumo-cli: checksum mismatch for {archive_name}: expected {expected}, got {actual}");
     }
 }
 
 fn main() {
     let (goos, goarch) = target_pair();
-    let bin_name = if goos == "windows" { "bootstrap.exe" } else { "bootstrap" };
+    let bin_name = if goos == "windows" { "lumo.exe" } else { "lumo" };
     let cache = cache_dir(&goos, &goarch);
     let bin_path = cache.join(bin_name);
 
     if !bin_path.exists() {
         let ext = if goos == "windows" { "zip" } else { "tar.gz" };
-        let archive_name = format!("cli_{VERSION}_{goos}_{goarch}.{ext}");
+        let archive_name = format!("lumo_{VERSION}_{goos}_{goarch}.{ext}");
         let base_url = format!("https://github.com/{REPO}/releases/download/{VERSION}");
 
-        let tmp = env::temp_dir().join(format!("bootstrap-cli-build-{}", std::process::id()));
+        let tmp = env::temp_dir().join(format!("lumo-cli-build-{}", std::process::id()));
         fs::create_dir_all(&tmp).expect("creating temp dir");
         let archive_path = tmp.join(&archive_name);
         let sums_path = tmp.join("SHA256SUMS.txt");
 
-        println!("cargo:warning=bootstrap-cli: downloading {archive_name} ({VERSION})...");
+        println!("cargo:warning=lumo-cli: downloading {archive_name} ({VERSION})...");
         run(Command::new("curl").args([
             "-fsSL", "-o", archive_path.to_str().unwrap(),
             &format!("{base_url}/{archive_name}"),
@@ -137,7 +137,7 @@ fn main() {
             "-C", tmp.to_str().unwrap(),
         ]));
 
-        let extracted_dir = tmp.join(format!("cli_{VERSION}_{goos}_{goarch}"));
+        let extracted_dir = tmp.join(format!("lumo_{VERSION}_{goos}_{goarch}"));
         fs::create_dir_all(&cache).expect("creating cache dir");
         fs::copy(extracted_dir.join(bin_name), &bin_path).expect("copying binary");
         #[cfg(unix)]
@@ -149,5 +149,5 @@ fn main() {
         let _ = fs::remove_dir_all(&tmp);
     }
 
-    println!("cargo:rustc-env=BOOTSTRAP_BIN_PATH={}", bin_path.display());
+    println!("cargo:rustc-env=LUMO_BIN_PATH={}", bin_path.display());
 }

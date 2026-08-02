@@ -1,4 +1,4 @@
-// Package engine orchestrates one "bootstrap new" run: validate answers,
+// Package engine orchestrates one "lumo new" run: validate answers,
 // resolve the matching template plugin and every selected capability
 // plugin up front (fail-fast, before anything runs), order capabilities
 // respecting any declared dependencies, generate the project, then apply
@@ -8,10 +8,10 @@ package engine
 import (
 	"fmt"
 
-	"github.com/intruder0007/Cli/core/config"
-	"github.com/intruder0007/Cli/core/diag"
-	"github.com/intruder0007/Cli/core/registry"
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	"github.com/intruder0007/Lumo/core/config"
+	"github.com/intruder0007/Lumo/core/diag"
+	"github.com/intruder0007/Lumo/core/registry"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 // Summary aggregates the result of a full generate+apply run.
@@ -44,6 +44,12 @@ type Engine struct {
 	// Logger receives diagnostic lines about resolution/ordering
 	// decisions. Nil means silent.
 	Logger diag.Logger
+	// Progress receives a short human-readable phase label as each
+	// phase of a run begins (done=false) and completes successfully
+	// (done=true), letting the CLI render progress without knowing
+	// engine internals. It is never called after a phase fails (the
+	// error return carries that signal). Nil means silent.
+	Progress func(phase string, done bool)
 }
 
 // New returns an Engine using the given registry and host.
@@ -56,6 +62,12 @@ func (e *Engine) logger() diag.Logger {
 		return e.Logger
 	}
 	return diag.NoopLogger{}
+}
+
+func (e *Engine) notify(phase string, done bool) {
+	if e.Progress != nil {
+		e.Progress(phase, done)
+	}
 }
 
 // CapabilityCycleError means the selected capabilities' dependsOn
@@ -105,6 +117,7 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 
 	summary.Template = tmpl.Manifest.Name
 
+	e.notify("generating template "+tmpl.Manifest.Name, false)
 	genResp, err := e.Host.Generate(tmpl.EntrypointPath, tmpl.Manifest.Name, sdk.ProtocolVersion, sdk.GenerateRequest{
 		TargetDir:   targetDir,
 		ProjectName: a.ProjectName,
@@ -113,10 +126,12 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	if err != nil {
 		return summary, fmt.Errorf("generating from template %q: %w", tmpl.Manifest.Name, err)
 	}
+	e.notify("generating template "+tmpl.Manifest.Name, true)
 	summary.FilesWritten = append(summary.FilesWritten, genResp.FilesWritten...)
 	summary.NextSteps = append(summary.NextSteps, genResp.NextSteps...)
 
 	for _, c := range ordered {
+		e.notify("applying capability "+c.Manifest.CapabilityID, false)
 		applyResp, err := e.Host.Apply(c.EntrypointPath, c.Manifest.Name, sdk.ProtocolVersion, sdk.ApplyRequest{
 			TargetDir:   targetDir,
 			ProjectName: a.ProjectName,
@@ -125,6 +140,7 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 		if err != nil {
 			return summary, fmt.Errorf("applying capability %q: %w", c.Manifest.CapabilityID, err)
 		}
+		e.notify("applying capability "+c.Manifest.CapabilityID, true)
 		summary.FilesWritten = append(summary.FilesWritten, applyResp.FilesWritten...)
 		summary.NextSteps = append(summary.NextSteps, applyResp.NextSteps...)
 		summary.CapabilitiesApplied = append(summary.CapabilitiesApplied, c.Manifest.CapabilityID)

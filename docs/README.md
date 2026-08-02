@@ -6,7 +6,7 @@ platform (plugin/template authors, SDK users, wrapper maintainers).
 
 ## Getting started
 
-- [`README.md`](../README.md) — what Cli is, principles, installation,
+- [`README.md`](../README.md) — what Lumo is, principles, installation,
   and a quick start.
 - [`docs/cli/usage.md`](cli/usage.md) — every command, flag, and exit
   code, plus the interactive/non-interactive paths.
@@ -29,7 +29,7 @@ platform (plugin/template authors, SDK users, wrapper maintainers).
 - [`docs/architecture/roadmap.md`](architecture/roadmap.md) — what's
   shipped, deferred, and planned.
 - [`docs/architecture/adr/`](architecture/adr/) — the decision records,
-  numbered `0001`–`0014`, each statused Accepted.
+  numbered `0001`–`0015`, each statused Accepted.
 
 ## Guides
 
@@ -39,6 +39,10 @@ platform (plugin/template authors, SDK users, wrapper maintainers).
 - [`docs/guides/versioning.md`](guides/versioning.md) — how releases,
   surfaces, and `protocolVersion` are versioned, and what each kind of
   version bump means to consumers.
+- [`docs/guides/releasing.md`](guides/releasing.md) — the release
+  runbook: cutting a `vX.Y.Z` tag, the automatic GitHub release and
+  npm publish, post-release verification, rollback/deprecation, and
+  long-term maintenance.
 - [`docs/guides/migration-guide.md`](guides/migration-guide.md) — every
   breaking change and how to move between releases.
 - [`docs/guides/tutorials.md`](guides/tutorials.md) — end-to-end

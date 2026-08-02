@@ -1,4 +1,4 @@
-// Package sdk implements the plugin side of the Cli plugin protocol:
+// Package sdk implements the plugin side of the Lumo plugin protocol:
 // subprocess + line-delimited JSON-RPC 2.0 over stdio. See
 // docs/architecture/plugin-protocol.md for the full wire spec.
 //

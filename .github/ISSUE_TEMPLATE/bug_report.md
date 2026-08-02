@@ -21,4 +21,4 @@ labels: bug
 ## Environment
 
 - OS:
-- `bootstrap version` output:
+- `lumo version` output:

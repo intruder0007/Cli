@@ -16,7 +16,7 @@ The *plugin* is Go (no other first-party SDK exists yet — see
 ```go
 package main
 
-import "github.com/intruder0007/Cli/sdk/go/sdk"
+import "github.com/intruder0007/Lumo/sdk/go/sdk"
 
 type myTemplate struct{}
 
@@ -72,7 +72,7 @@ Before packaging a template for release (or opening a PR that adds
 one), run the pre-release check:
 
 ```sh
-bootstrap plugins validate templates/my-template
+lumo plugins validate templates/my-template
 ```
 
 This proves the directory's `plugin.json` parses and passes

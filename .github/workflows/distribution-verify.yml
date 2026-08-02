@@ -3,17 +3,22 @@ name: Distribution verify
 # Proves "clean machine install" for every distribution wrapper under
 # distribution/ against real, published release assets — one job per
 # ecosystem, each on a disposable runner, each ending in a real
-# `bootstrap version` invocation through that ecosystem's real install
-# path. Publishing is a separate, later, explicitly-confirmed step for
-# each ecosystem (npm publish / twine upload / cargo publish / choco
-# push need real credentials; Homebrew/Scoop/Winget need a PR to a
+# `lumo version` invocation through that ecosystem's real install
+# path. Publishing is a separate, explicitly-confirmed step for each
+# ecosystem (npm publish / twine upload / cargo publish / choco push
+# need real credentials; Homebrew/Scoop/Winget need a PR to a
 # third-party repo) — this workflow only ever installs locally on the
 # runner, never publishes anywhere.
+#
+# Triggers: pull requests touching distribution/, and manual runs.
+# There is deliberately no push-to-main trigger: the wrappers pin the
+# release version they launch, and the release (and its assets) are
+# created *after* the version bump lands on main — a push trigger
+# would race the release pipeline and fail on not-yet-existing
+# assets. Run this workflow manually right after a release (or wait
+# for the next PR) to re-verify clean-machine installs.
 on:
   pull_request:
-    paths: ["distribution/**"]
-  push:
-    branches: [main]
     paths: ["distribution/**"]
   workflow_dispatch:
 
@@ -31,9 +36,9 @@ jobs:
           cd distribution/npm
           npm pack --pack-destination /tmp
           mkdir -p /tmp/npm-prefix
-          npm install --prefix /tmp/npm-prefix /tmp/bootstrap-cli-*.tgz
+          npm install --prefix /tmp/npm-prefix /tmp/lumo-cli-*.tgz
       - name: Verify
-        run: /tmp/npm-prefix/node_modules/.bin/bootstrap version
+        run: /tmp/npm-prefix/node_modules/.bin/lumo version
 
   pypi:
     runs-on: ubuntu-latest
@@ -45,7 +50,7 @@ jobs:
       - name: Install
         run: pip install ./distribution/pypi
       - name: Verify
-        run: bootstrap version
+        run: lumo version
 
   cargo:
     runs-on: ubuntu-latest
@@ -54,7 +59,7 @@ jobs:
       - name: Install
         run: cargo install --path distribution/cargo
       - name: Verify
-        run: bootstrap version
+        run: lumo version
 
   homebrew:
     runs-on: macos-latest
@@ -67,13 +72,13 @@ jobs:
       - name: Install formula via a local tap
         run: |
           set -euo pipefail
-          brew tap-new local/bootstrap
-          cp ./distribution/homebrew/bootstrap.rb "$(brew --repository local/bootstrap)/Formula/bootstrap.rb"
-          brew install local/bootstrap/bootstrap
+          brew tap-new local/lumo
+          cp ./distribution/homebrew/lumo.rb "$(brew --repository local/lumo)/Formula/lumo.rb"
+          brew install local/lumo/lumo
       - name: Formula test block
-        run: brew test local/bootstrap/bootstrap
+        run: brew test local/lumo/lumo
       - name: Verify
-        run: bootstrap version
+        run: lumo version
 
   scoop:
     runs-on: windows-latest
@@ -92,10 +97,10 @@ jobs:
       - name: Install manifest
         shell: powershell
         run: |
-          scoop install (Resolve-Path distribution\scoop\bootstrap.json)
+          scoop install (Resolve-Path distribution\scoop\lumo.json)
       - name: Verify
         shell: powershell
-        run: bootstrap version
+        run: lumo version
 
   winget:
     runs-on: windows-latest
@@ -118,7 +123,7 @@ jobs:
       - name: Validate manifest
         if: steps.check.outputs.available == 'true'
         shell: powershell
-        run: winget validate distribution\winget\manifests\i\intruder0007\Cli\0.3.0
+        run: winget validate distribution\winget\manifests\i\intruder0007\Lumo\1.0.0
       # Installing from a local manifest is an opt-in winget feature —
       # off by default, must be explicitly enabled first.
       - name: Enable local manifest installs
@@ -133,12 +138,12 @@ jobs:
         if: steps.check.outputs.available == 'true'
         shell: powershell
         run: |
-          winget install --manifest distribution\winget\manifests\i\intruder0007\Cli\0.3.0 --accept-package-agreements --accept-source-agreements
+          winget install --manifest distribution\winget\manifests\i\intruder0007\Lumo\1.0.0 --accept-package-agreements --accept-source-agreements
           Add-Content -Path $env:GITHUB_PATH -Value "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
       - name: Verify
         if: steps.check.outputs.available == 'true'
         shell: powershell
-        run: bootstrap version
+        run: lumo version
 
   chocolatey:
     runs-on: windows-latest
@@ -146,10 +151,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Pack
         shell: powershell
-        run: choco pack distribution\chocolatey\bootstrap.nuspec --outputdirectory distribution\chocolatey
+        run: choco pack distribution\chocolatey\lumo.nuspec --outputdirectory distribution\chocolatey
       - name: Install
         shell: powershell
-        run: choco install bootstrap-cli --source distribution\chocolatey -y
+        run: choco install lumo-cli --source distribution\chocolatey -y
       - name: Verify
         shell: powershell
-        run: bootstrap version
+        run: lumo version

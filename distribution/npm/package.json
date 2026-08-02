@@ -1,24 +1,45 @@
 {
-  "name": "bootstrap-cli",
-  "version": "0.3.0",
-  "description": "Thin launcher for the Cli developer bootstrap platform (github.com/intruder0007/Cli) — downloads and runs the real bootstrap binary for your platform.",
+  "name": "lumo-cli",
+  "version": "1.0.0",
+  "description": "Launcher for the Lumo project scaffolding platform — installs the real `lumo` binary (github.com/intruder0007/Lumo) for your platform and runs it with full terminal passthrough.",
   "license": "MIT",
+  "author": {
+    "name": "intruder0007"
+  },
+  "homepage": "https://github.com/intruder0007/Lumo#readme",
+  "bugs": {
+    "url": "https://github.com/intruder0007/Lumo/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/intruder0007/Cli.git"
+    "url": "git+https://github.com/intruder0007/Lumo.git"
   },
+  "keywords": [
+    "lumo",
+    "scaffolding",
+    "project-generator",
+    "cli",
+    "developer-tools",
+    "template"
+  ],
+  "type": "commonjs",
   "bin": {
-    "bootstrap": "bin/bootstrap.js"
+    "lumo": "bin/lumo.js"
   },
   "files": [
     "bin",
     "scripts"
   ],
   "scripts": {
+    "prepublishOnly": "node scripts/verify-release.js",
     "postinstall": "node scripts/postinstall.js"
   },
   "os": ["linux", "darwin", "win32"],
+  "cpu": ["x64", "arm64"],
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

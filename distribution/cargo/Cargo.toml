@@ -1,19 +1,19 @@
 [package]
-name = "bootstrap-cli"
-version = "0.3.0"
+name = "lumo-cli"
+version = "1.0.0"
 edition = "2021"
-description = "Thin launcher for the Cli developer bootstrap platform (github.com/intruder0007/Cli) — downloads and runs the real bootstrap binary for your platform."
+description = "Thin launcher for the Lumo project scaffolding platform (github.com/intruder0007/Lumo) — downloads and runs the real lumo binary for your platform."
 license = "MIT"
-repository = "https://github.com/intruder0007/Cli"
+repository = "https://github.com/intruder0007/Lumo"
 build = "build.rs"
 
 [[bin]]
-name = "bootstrap"
+name = "lumo"
 path = "src/main.rs"
 
 # Deliberately zero dependencies, including build-dependencies: build.rs
 # shells out to curl/tar (and sha256sum/certutil for checksums) instead
-# of pulling in an HTTP client + archive + hashing crate, matching this
+# of pulling in an HhhP client + archive + hashing crate, matching this
 # project's existing "use the system tool instead of adding a
 # dependency" convention (see plugins/builtin/git-init, distribution/npm's
 # postinstall.js, install.sh).

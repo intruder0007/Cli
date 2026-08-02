@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Downloads the release archive matching this package's own version and
 // the current platform, verifies it against SHA256SUMS.txt, extracts
-// just the bootstrap binary into .bin/, and cleans up. Zero npm
+// just the lumo binary into .bin/, and cleans up. Zero npm
 // dependencies on purpose — matches templates/node-rest-api and
 // plugins/builtin/git-init's existing "shell out to a system tool
 // rather than add a dependency" pattern (here: the system `tar`, which
@@ -18,7 +18,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const REPO = 'intruder0007/Cli';
+const REPO = 'intruder0007/Lumo';
 const pkg = require('../package.json');
 const VERSION = 'v' + pkg.version;
 
@@ -35,7 +35,7 @@ function download(url, destPath) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destPath);
     https
-      .get(url, { headers: { 'User-Agent': 'bootstrap-cli-npm-installer' } }, (res) => {
+      .get(url, { headers: { 'User-Agent': 'lumo-cli-npm-installer' } }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           file.close();
           fs.unlinkSync(destPath);
@@ -75,21 +75,42 @@ function verifyChecksum(archiveName, archivePath, sumsPath) {
 async function main() {
   const { goos, goarch } = platformTarget();
   const ext = goos === 'windows' ? 'zip' : 'tar.gz';
-  const archiveName = `cli_${VERSION}_${goos}_${goarch}.${ext}`;
+  const archiveName = `lumo_${VERSION}_${goos}_${goarch}.${ext}`;
   const baseUrl = `https://github.com/${REPO}/releases/download/${VERSION}`;
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bootstrap-cli-'));
+  const destDir = path.join(__dirname, '..', '.bin');
+  const binName = goos === 'windows' ? 'lumo.exe' : 'lumo';
+  const markerPath = path.join(destDir, '.lumo-version');
+
+  // Idempotency marker: re-installing the same package version (npm ci,
+  // reinstall, CI caches) must not re-download the binary. The package
+  // version is bound to a specific release by the release pipeline, so
+  // the marker cannot go stale; it is only written after a successful
+  // install, so a failed download never short-circuits a retry. The
+  // binary itself must still exist — if it was deleted or corrupted
+  // after install, re-download rather than skip.
+  const installed = path.join(destDir, binName);
+  if (
+    fs.existsSync(markerPath) &&
+    fs.readFileSync(markerPath, 'utf8').trim() === pkg.version &&
+    fs.existsSync(installed)
+  ) {
+    console.log(`lumo-cli: ${pkg.version} already installed; skipping download.`);
+    return;
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumo-cli-'));
   const archivePath = path.join(tmpDir, archiveName);
   const sumsPath = path.join(tmpDir, 'SHA256SUMS.txt');
 
-  console.log(`bootstrap-cli: downloading ${archiveName} (${VERSION})...`);
+  console.log(`lumo-cli: downloading ${archiveName} (${VERSION})...`);
   await download(`${baseUrl}/${archiveName}`, archivePath);
   await download(`${baseUrl}/SHA256SUMS.txt`, sumsPath);
 
-  console.log('bootstrap-cli: verifying checksum...');
+  console.log('lumo-cli: verifying checksum...');
   verifyChecksum(archiveName, archivePath, sumsPath);
 
-  console.log('bootstrap-cli: extracting...');
+  console.log('lumo-cli: extracting...');
   // On Windows, a `tar` resolved via PATH can be Git for Windows' GNU
   // tar (from MSYS) rather than the OS-bundled bsdtar in System32 —
   // GNU tar interprets a bare drive-letter path like "C:\Users\..." as
@@ -103,20 +124,19 @@ async function main() {
       : 'tar';
   execFileSync(tarPath, ['-xf', archivePath, '-C', tmpDir]);
 
-  const extractedDir = path.join(tmpDir, `cli_${VERSION}_${goos}_${goarch}`);
-  const binName = goos === 'windows' ? 'bootstrap.exe' : 'bootstrap';
-  const destDir = path.join(__dirname, '..', '.bin');
+  const extractedDir = path.join(tmpDir, `lumo_${VERSION}_${goos}_${goarch}`);
   fs.mkdirSync(destDir, { recursive: true });
   fs.copyFileSync(path.join(extractedDir, binName), path.join(destDir, binName));
   if (goos !== 'windows') {
     fs.chmodSync(path.join(destDir, binName), 0o755);
   }
+  fs.writeFileSync(markerPath, pkg.version + '\n');
 
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  console.log(`bootstrap-cli: installed ${VERSION} for ${goos}/${goarch}.`);
+  console.log(`lumo-cli: installed ${VERSION} for ${goos}/${goarch}.`);
 }
 
 main().catch((err) => {
-  console.error('bootstrap-cli: install failed:', err.message);
+  console.error('lumo-cli: install failed:', err.message);
   process.exit(1);
 });

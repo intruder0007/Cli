@@ -17,13 +17,13 @@ a generated project, then validate and use it.
 ```sh
 mkdir license-plugin && cd license-plugin
 go mod init license-plugin
-go get github.com/intruder0007/Cli/sdk/go@latest
+go get github.com/intruder0007/Lumo/sdk/go@latest
 ```
 
 (The SDK is a normal Go module, but as of v0.3.0 no
 `sdk/go/vX.Y.Z` submodule tags are published yet, so `go get
 ...@latest` won't resolve until the first tagged release. Until then,
-add `replace github.com/intruder0007/Cli/sdk/go => /path/to/this/repo/sdk/go`
+add `replace github.com/intruder0007/Lumo/sdk/go => /path/to/this/repo/sdk/go`
 to your `go.mod`, or build inside the repository, where the `go.work`
 workspace resolves it in place.)
 
@@ -38,7 +38,7 @@ import (
     "os"
     "path/filepath"
 
-    "github.com/intruder0007/Cli/sdk/go/sdk"
+    "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 type license struct{}
@@ -84,7 +84,7 @@ relative to the manifest and must match the built binary name.
 
 ```sh
 go build -o license .
-bootstrap plugins validate .
+lumo plugins validate .
 ```
 
 Exit 0 means the manifest is valid **and** the binary spawns and
@@ -96,7 +96,7 @@ fails here, before anyone installs it.
 Place the binary and manifest under `plugins/builtin/license/`
 (first-party) or a local plugin directory the core is configured to
 scan. That's the whole extensibility contract — no core changes, and
-the plugin is just one entry in `bootstrap plugins list`.
+the plugin is just one entry in `lumo plugins list`.
 
 ## Tutorial 2: a template plugin in Go
 
@@ -108,7 +108,7 @@ into `TargetDir`.
 ```sh
 mkdir hello-template && cd hello-template
 go mod init hello-template
-go get github.com/intruder0007/Cli/sdk/go@latest
+go get github.com/intruder0007/Lumo/sdk/go@latest
 ```
 
 (No `sdk/go/vX.Y.Z` submodule tag exists yet — same `replace` or
@@ -123,7 +123,7 @@ import (
     "os"
     "path/filepath"
 
-    "github.com/intruder0007/Cli/sdk/go/sdk"
+    "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 type hello struct{}
@@ -173,11 +173,11 @@ template covers yet):
 
 ```sh
 go build -o hello .
-bootstrap plugins validate .
+lumo plugins validate .
 ```
 
 Then place it under `templates/hello/` (or a configured local plugin
-directory). `bootstrap new` will offer it when the wizard's answers
+directory). `lumo new` will offer it when the wizard's answers
 match its `projectType`/`language`/`framework`.
 
 ## Tutorial 3: the protocol by hand, in any language
@@ -224,7 +224,7 @@ Rules:
 
 ### Testing your implementation
 
-Run your binary through `bootstrap plugins validate <dir>` (manifest +
+Run your binary through `lumo plugins validate <dir>` (manifest +
 handshake check), then generate a project and compare your output to
 `core/plugin/testdata/wire-generate.golden` — the host emits exactly
 those request lines, and a correct implementation answers exactly

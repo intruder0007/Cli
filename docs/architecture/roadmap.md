@@ -8,9 +8,14 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   local directory scan only (`docs/architecture/plugin-protocol.md`
   "Discovery"). `core/registry`'s interface is written so a remote source
   can be added as another implementation later without changing callers.
-- **Additional project types, languages, and frameworks.** The wizard
-  already lists them as "(coming soon)"; adding one is "write a new
-  template plugin," not a core change (ADR-0002).
+- **Additional project types, languages, and frameworks.** Since 1.0.0
+  the wizard is fully registry-driven: every menu is built from the
+  installed template/capability plugins, filtered step by step (project
+  type → language → framework), so adding one is "write a new template
+  plugin," not a core change (ADR-0002). The pre-1.0 hardcoded
+  "(coming soon)" placeholders were removed — the wizard only offers
+  what's actually installed, and a combination that can't resolve can't
+  be picked in the first place.
 - **Non-Go plugin transports.** WASM and native dynamic library transports
   were considered and rejected for V1 (ADR-0002); subprocess+JSON-RPC
   stays the only transport unless a concrete need forces revisiting that
@@ -43,11 +48,17 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
 - **Workspace/monorepo project generation.** V1 generates exactly one
   project per run.
 - **Localization/i18n of the wizard.** English only in V1.
-- **Distribution wrapper *publishing*.** The 7 wrappers (npm, PyPI,
-  Cargo, Homebrew, Scoop, Winget, Chocolatey) are built and CI-verified
-  against real release assets, but none is published to a live registry
-  — publishing needs either a credential (npm/PyPI/Cargo/Chocolatey) or
-  a PR to a third-party repo (Homebrew/Scoop/Winget), each an
+- **Distribution wrapper *publishing* (remaining 6 of 7).** The
+  interim npm package `bootstrap-cli-dev@0.3.0` is **live and
+  deprecated** (published 2026-08-02 under the platform's old name,
+  deprecated the same day); the renamed
+  wrapper `lumo-cli@1.0.0` is published with the v1.0.0 release,
+  replacing it — see
+  [`distribution/npm/README.md`](../../distribution/npm/README.md) and
+  ADR-0015. PyPI, Cargo, Homebrew, Scoop, Winget, and Chocolatey are
+  built and CI-verified against real release assets, but not published
+  — publishing needs either a credential (PyPI/Cargo/Chocolatey) or a
+  PR to a third-party repo (Homebrew/Scoop/Winget), each an
   explicitly-confirmed separate step. `go install` of the `cli` module
   still doesn't deliver the embedded plugin fallback (the staged plugin
   assets are gitignored and only the build pipeline embeds them), and
@@ -68,7 +79,7 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   (see ADR-0013).
 - **Old-version embedded-cache cleanup.** ADR-0012's self-extracted
   plugin fallback is scoped per version
-  (`os.UserCacheDir()/bootstrap/<version>/`), so upgrading never serves
+  (`os.UserCacheDir()/lumo/<version>/`), so upgrading never serves
   stale plugins, but nothing garbage-collects a *previous* version's
   cache directory. Not proven to matter yet.
 - **Release archive simplification.** Now that the `cli` binary is

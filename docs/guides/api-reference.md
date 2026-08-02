@@ -36,7 +36,7 @@ Errors (JSON-RPC 2.0 error objects):
 
 ## 2. `sdk/go` (Stable)
 
-Module `github.com/intruder0007/Cli/sdk/go`, package `sdk`. Every
+Module `github.com/intruder0007/Lumo/sdk/go`, package `sdk`. Every
 exported identifier is a contract (see the package doc).
 
 ### Constants
@@ -127,13 +127,13 @@ Full details and flags: [`docs/cli/usage.md`](../cli/usage.md).
 
 | Command | Contract |
 |---|---|
-| `bootstrap new` | Interactive wizard; non-interactive whenever a positional `name` or any flag is given — there is no `--non-interactive` flag, it's implicit (and `--answers <file>` is the scriptable path); `--verbose`/`-v` diagnostics. Bare `bootstrap` (no arguments) is the same as `bootstrap new`. |
-| `bootstrap plugins list` | Lists discovered template and capability plugins (name, kind, version). |
-| `bootstrap plugins validate <plugin-dir>` | Pre-release check; exit 0 = valid, 1 = invalid. |
-| `bootstrap config get theme` / `bootstrap config set theme <name>` | Theme persistence. |
-| `bootstrap doctor` | Local health checks (plugin directory setup, wrapper setup). |
-| `bootstrap version` | `bootstrap version <v> (go<ver>, <os>/<arch>)`. |
-| `bootstrap help` / `bootstrap <command> -h` | Help. |
+| `lumo new` | Interactive wizard; non-interactive whenever a positional `name` or any flag is given — there is no `--non-interactive` flag, it's implicit (and `--answers <file>` is the scriptable path); `--verbose`/`-v` diagnostics. Bare `lumo` (no arguments) is the same as `lumo new`. |
+| `lumo plugins list` | Lists discovered template and capability plugins (name, kind, version). |
+| `lumo plugins validate <plugin-dir>` | Pre-release check; exit 0 = valid, 1 = invalid. |
+| `lumo config get theme` / `lumo config set theme <name>` | Theme persistence. |
+| `lumo doctor` | Local health checks (plugin directory setup, wrapper setup). |
+| `lumo version` | `lumo version <v> (go<ver>, <os>/<arch>)`. |
+| `lumo help` / `lumo <command> -h` | Help. |
 
 Exit codes and output lines documented in `usage.md` are part of this
 surface.
@@ -147,7 +147,7 @@ four-step contract in
 
 1. Resolve the platform.
 2. Locate/fetch the release archive.
-3. Exec the embedded `bootstrap` binary with stdio passthrough.
+3. Exec the embedded `lumo` binary with stdio passthrough.
 4. Forward argv and the exit code.
 
 The binary embeds its own plugin set as a fallback (ADR-0012), so a

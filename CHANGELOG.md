@@ -17,12 +17,39 @@ for how to add an entry.
 
 ### Added
 
-- Running `bootstrap` with no arguments now starts the interactive
-  wizard (the same as `bootstrap new`) instead of printing help and
+- **Registry-driven wizard (ADR-0007)**: the project type, language,
+  framework, and capability menus are built from the installed plugins
+  (`core/registry` discovery → `prompt.WizardSpec`), replacing the
+  hardcoded option lists. Each step filters the next (language by
+  project type, framework by project type + language), so a combination
+  with no matching template can't be picked in the first place; the
+  capabilities step is skipped when none are installed; and with no
+  template plugins discoverable at all, the wizard fails fast with a
+  hint instead of asking dead-end questions. Adding a new stack is
+  "drop in a template plugin" (ADR-0002) — no CLI changes.
+- Type-ahead **fuzzy search in every wizard menu**: typing any letters
+  narrows the list by fuzzy subsequence match (`rbapi` finds "REST API
+  (node:http)"), `backspace` edits the filter, `esc` clears it first and
+  only cancels on a second press, and a hint line under each menu shows
+  the active keys. Filtering is a navigation convenience only — the
+  line-based fallback and non-interactive flags stay equivalent
+  (ADR-0007).
+- **Phase progress during `lumo new`**: a plan line (project + choices),
+  then one live spinner per phase on a terminal (braille frames in the
+  default theme, ASCII in minimal), degrading to plain `- phase` lines
+  under pipes/CI — no escape codes off a terminal. Backed by a new
+  `engine.Engine.Progress` callback and `prompt.Spinner` (both additive;
+  nil Progress stays silent).
+- **Design tokens** on `Theme` (`Primary`/`Accent`/`Warn`/`Border`
+  helpers + per-theme spinner frames): the whole CLI now renders through
+  semantic colors rather than raw ANSI codes, keeping the
+  `NO_COLOR`/minimal-theme contract intact (ADR-0007, theme plugin seam).
+- Running `lumo` with no arguments now starts the interactive
+  wizard (the same as `lumo new`) instead of printing help and
   exiting — this is what double-clicking the binary on Windows does, so
   the wizard actually opens now. Under piped stdin (scripts) it hits
   the wizard's EOF path and fails with "project name is required"
-  (exit 1); `bootstrap help` still prints the command reference.
+  (exit 1); `lumo help` still prints the command reference.
 - Public API compatibility policy (ADR-0013 + `api-compatibility.md`):
   an explicit inventory of every public surface with its stability
   stage (Stable: wire protocol, `sdk/go`, CLI commands, distribution
@@ -39,7 +66,7 @@ for how to add an entry.
   multi-version sketched). Design notes added under
   `sdk/{node,python,rust,future}/`; no SDK beyond `sdk/go` is
   implemented, per scope.
-- `bootstrap plugins validate <dir>` — pre-release extension check:
+- `lumo plugins validate <dir>` — pre-release extension check:
   validates a plugin directory's manifest (`Manifest.Validate()`) and
   proves the entrypoint binary spawns and passes the
   `plugin.initialize` identity/protocol cross-check against the
@@ -69,18 +96,50 @@ for how to add an entry.
   `serveWithIO(reader, writer)` for in-process byte-exact testing;
   public API and behavior unchanged. See "Wire protocol stability" in
   `plugin-protocol.md`.
+- The npm wrapper is published as `bootstrap-cli-dev@0.3.0` — the
+  platform's first official distribution channel (ADR-0015), verified
+  by a clean-machine install from the registry (`lumo version`,
+  `plugins list`). Published under the platform's old name; the
+  version-synced `lumo-cli` successor is published as `lumo-cli@1.0.0`
+  with the v1.0.0 release, replacing the interim package (deprecated
+  2026-08-02).
+  Production `package.json` (full metadata, `os`/`cpu`
+  restricted to the release matrix), a pre-publish guard
+  (`scripts/verify-release.js` — fails `npm publish` unless every
+  platform archive and `SHA256SUMS.txt` exist for the package's
+  version), an idempotency marker so repeated installs skip
+  re-downloading the binary, and an actionable shim error when install
+  scripts were skipped. `release.yml` gains a `publish-npm` job (runs
+  after the GitHub release, gated on the `NPM_TOKEN` secret) with a
+  version-sync check, provenance, and a clean-prefix smoke test;
+  `npm-verify-published.yml` verifies the published package on clean
+  Linux/Windows runners. Release runbook in `docs/guides/releasing.md`.
 
 ### Changed
 
+- The wizard no longer shows hardcoded "(coming soon)" placeholders
+  (web-app, cli-tool, library, typescript, python, rust, grpc, graphql):
+  menus now reflect what's actually installed, and frameworks are
+  filtered by the chosen project type + language (previously every
+  framework was offered for every language, with unmatched
+  combinations failing only at the end). See the migration guide.
+- Wizard menus show their position (`Step 1 of 5 · Theme`, …); the
+  `lumo new` success screen uses a tree listing (├─/└─ glyphs, `+` in
+  minimal) and arrow-marked next steps; the banner tagline is now
+  "Lumo — a new project, ready in seconds"; errors get breathing-room
+  spacing. Text labels remain the only signal in the minimal theme.
+- A bare ESC no longer swallows the keystroke after it (e.g.
+  ESC-then-Enter), fixing a lost-input wart in the raw-mode menus.
 - All 7 distribution wrappers repointed at the real `v0.3.0` release
   assets (package versions, download URLs, `extract_dir`, and
   checksums from the published `SHA256SUMS.txt`), re-verified against
-  them in `distribution-verify.yml` CI. None are published yet.
+  them in `distribution-verify.yml` CI. None are published yet; the
+  npm wrapper is now publish-ready (see `docs/guides/releasing.md`).
 - Codebase audit (Phase F) fixes: `plugin.Host` now wires plugin
   stderr through a new `Stderr` field, verifies the JSON-RPC response
   id, treats `ok:false` handshakes as errors, bounds the shutdown call
   by `ShutdownTimeout`, and logs finish failures; the engine collapses
-  duplicate capability selections; `bootstrap new` refuses non-empty
+  duplicate capability selections; `lumo new` refuses non-empty
   target directories and extra positional arguments (exit 2),
   `--answers` + positional project name is rejected (exit 2),
   `config set theme` surfaces config-load errors, `--no-color` now
@@ -116,14 +175,14 @@ for how to add an entry.
   the bare-binary gap ADR-0010 had left open for binaries built by the
   release pipeline (`make build`/release.yml stage the plugin assets
   into the embed dir first). Note: a raw `go install
-  github.com/intruder0007/Cli/cli@latest` still produces a binary
+  github.com/intruder0007/Lumo/cli@latest` still produces a binary
   without the embedded fallback (the staged assets are gitignored), and
   the module has no `cli/vX.Y.Z` submodule tags yet — see
   `distribution/go/README.md` for the honest status.
 - `install.sh`/`install.ps1` — one-line install scripts that resolve
   platform, verify the release archive's checksum, and put just the
-  `bootstrap` binary on `PATH`.
-- `bootstrap doctor` now reports whether this binary has embedded
+  `lumo` binary on `PATH`.
+- `lumo doctor` now reports whether this binary has embedded
   plugin assets and whether the embedded fallback is currently serving
   plugins for the run.
 
@@ -140,13 +199,13 @@ for how to add an entry.
 
 - `core/diag` — a minimal `Logger` seam shared by `core/engine` and
   `core/plugin`; nil-safe (defaults to a no-op) and opt-in.
-- `bootstrap new --verbose`/`-v` — prints diagnostic logging (plugin
+- `lumo new --verbose`/`-v` — prints diagnostic logging (plugin
   spawn, handshake result, timing, file counts) to stderr as a run
   progresses.
-- `bootstrap doctor` — local health check: verifies plugin directories
+- `lumo doctor` — local health check: verifies plugin directories
   resolve and every discovered manifest is valid, with a pass/fail
   summary and recovery hint.
-- `bootstrap version` now prints the Go runtime version and OS/arch
+- `lumo version` now prints the Go runtime version and OS/arch
   alongside the CLI's semver string.
 - Success screen now shows a one-line project summary (template used,
   file count, capabilities applied) via new `engine.Summary.Template`/
@@ -163,7 +222,7 @@ for how to add an entry.
   filters template resolution by the current platform.
 - Manifest validation (`sdk.Manifest.Validate()`) — required fields per
   kind, checked both on discovery and by plugins validating their own
-  manifest. `bootstrap plugins list` now reports skipped/invalid
+  manifest. `lumo plugins list` now reports skipped/invalid
   manifests instead of silently ignoring them.
 - Identity + protocol version cross-check at the `plugin.initialize`
   handshake — catches a stale or swapped plugin binary before
@@ -181,12 +240,12 @@ for how to add an entry.
   terminals — no non-interactive behavior change). See ADR-0007.
 - Theme is now a registry (`RegisterTheme`), not hardcoded — the
   concrete extension point for future themes.
-- Theme persistence: `bootstrap config get|set theme`; the interactive
+- Theme persistence: `lumo config get|set theme`; the interactive
   wizard now remembers your last-chosen theme.
 - Redesigned success/error screens; error screen includes a recovery
   hint for a few known failure shapes.
-- Startup banner and richer per-command help (`bootstrap help`,
-  `bootstrap <command> -h`).
+- Startup banner and richer per-command help (`lumo help`,
+  `lumo <command> -h`).
 - `markdownlint` now runs in CI against `docs/**/*.md` and the root-level
   `*.md` files, closing a gap where CONTRIBUTING.md documented this check
   before it actually existed.
@@ -200,11 +259,36 @@ for how to add an entry.
   input) — isolated to `cli` only; `core`/`sdk/go`/`templates/*`/
   `plugins/*` remain dependency-free.
 
+### Deprecated
+
+- `bootstrap-cli-dev@0.3.0` — the interim npm package published under
+  the platform's old name (ADR-0015) — is deprecated on the registry
+  (2026-08-02) with a pointer to its successor; `lumo-cli@1.0.0`
+  replaces it with the v1.0.0 release (ADR-0016).
+
+### Fixed
+
+- Distribution metadata corruption repaired: single-letter
+  substitutions from an earlier bulk edit — `intruder0007/aumo` repo
+  URLs in `distribution/npm/package.json`, 13 corrupted words
+  including the `NPM_TOKEN` secret name in `distribution/npm/README.md`
+  (plus a stale `cli_v<version>` asset name), "hhin launcher"
+  descriptions and `MIh` licenses in the cargo/pypi manifests — and
+  stale "`lumo-cli@0.3.0` is published" claims in the distribution
+  docs, all corrected to the canonical "Lumo project scaffolding
+  platform" prose and `github.com/intruder0007/Lumo` URLs. Final
+  corruption sweep over the whole repo: zero matches. Packed-tarball
+  smoke verified (exactly the five intended files; the pre-publish
+  guard fails correctly against the not-yet-existing v1.0.0 assets;
+  postinstall fails loudly and the `--ignore-scripts` shim error is
+  actionable). Full record: `docs/architecture/npm-identity-migration.md`
+  (ADR-0016).
+
 ### Fixed
 
 - `.github/workflows/release.yml` was missing `templates/node-rest-api`
   from the archive-assembly step — every release cut since the Node
-  template shipped would have produced archives where `bootstrap new
+  template shipped would have produced archives where `lumo new
   --language node` failed with `TemplateNotFoundError`. No release has
   been cut since this template was added, so nothing shipped broken.
 - `docs/architecture/plugin-protocol.md` and `CONTRIBUTING.md` referenced
@@ -220,7 +304,7 @@ for how to add an entry.
 
 ### Fixed
 
-- `bootstrap plugins list` showed every plugin twice when running a
+- `lumo plugins list` showed every plugin twice when running a
   released binary from its own extracted directory (the normal usage) —
   `pluginDirs()` now deduplicates its candidate directories by absolute
   path.
@@ -233,8 +317,8 @@ backend service (`templates/go-rest-api`) with three capability plugins
 (`git-init`, `readme`, `github-actions-ci`), over a subprocess +
 line-delimited JSON-RPC 2.0 plugin protocol (`sdk/go`).
 
-[Unreleased]: https://github.com/intruder0007/Cli/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/intruder0007/Cli/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/intruder0007/Cli/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/intruder0007/Cli/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/intruder0007/Cli/releases/tag/v0.1.0
+[Unreleased]: https://github.com/intruder0007/Lumo/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/intruder0007/Lumo/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/intruder0007/Lumo/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/intruder0007/Lumo/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/intruder0007/Lumo/releases/tag/v0.1.0

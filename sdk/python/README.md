@@ -10,7 +10,7 @@ shape ADR-0010 used for distribution wrappers before they were built.
 
 ## What building it requires
 
-- A PyPI package `bootstrap-cli-plugin-sdk` (name not reserved —
+- A PyPI package `lumo-plugin-sdk` (name not reserved —
   placeholder), **stdlib only**: `json`, `sys`, `os` cover the entire
   transport (line-delimited JSON-RPC over stdio, exit on
   `plugin.shutdown`/EOF). No `requests`, no `pydantic`.

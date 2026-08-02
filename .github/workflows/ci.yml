@@ -60,7 +60,7 @@ jobs:
 
       # make build runs the real staging pipeline (stage-embedded -> build
       # cli with the plugin set embedded via go:embed) and produces the
-      # self-sufficient bin/bootstrap every release archive ships. The
+      # self-sufficient bin/lumo every release archive ships. The
       # module-by-module steps above can't catch staging or go:embed
       # problems, so the actual pipeline must be exercised too. Guarded on
       # go.work existing, same as the module steps above (it only exists

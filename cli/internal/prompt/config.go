@@ -23,7 +23,7 @@ func configPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "cli", "config.json"), nil
+	return filepath.Join(dir, "lumo", "config.json"), nil
 }
 
 // LoadConfig reads the persisted config. A missing file is not an error

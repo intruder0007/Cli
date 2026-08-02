@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>lumo-cli</id>
+    <version>1.0.0</version>
+    <title>Lumo (lumo)</title>
+    <authors>intruder0007</authors>
+    <projectUrl>https://github.com/intruder0007/Lumo</projectUrl>
+    <licenseUrl>https://github.com/intruder0007/Lumo/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Cross-language project scaffolding platform: generate new projects via a plugin-based CLI. See https://github.com/intruder0007/Lumo.</description>
+    <tags>cli developer-tools lumo scaffolding</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

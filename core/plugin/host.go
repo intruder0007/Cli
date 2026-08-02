@@ -11,8 +11,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/intruder0007/Cli/core/diag"
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	"github.com/intruder0007/Lumo/core/diag"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 const defaultCallTimeout = 30 * time.Second
@@ -32,7 +32,7 @@ type Host struct {
 	// Stderr receives the plugin process's stderr (protocol-reserved for
 	// human-readable plugin logs — docs/architecture/plugin-protocol.md).
 	// Nil means the plugin's stderr is discarded, matching os/exec's
-	// default. `bootstrap new --verbose` wires this to os.Stderr so a
+	// default. `lumo new --verbose` wires this to os.Stderr so a
 	// hung or failing plugin's logs surface.
 	Stderr io.Writer
 }
@@ -277,7 +277,7 @@ func (h *Host) initialize(s *session, expectedName, expectedProtocolVersion stri
 // running process's self-reported name and protocol version against
 // expectedName/expectedProtocolVersion (from the on-disk manifest).
 // This is the same fail-fast surface Generate/Apply use (ADR-0008),
-// exposed standalone for `bootstrap plugins validate <dir>` so an
+// exposed standalone for `lumo plugins validate <dir>` so an
 // author can check an extension before shipping it.
 func (h *Host) Validate(entrypointPath, expectedName, expectedProtocolVersion string) error {
 	log := h.logger()

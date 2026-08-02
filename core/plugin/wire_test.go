@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite wire-protocol golden transcript files")
@@ -132,7 +132,7 @@ func (r *recReader) Read(p []byte) (int, error) {
 func buildWireResponder(t *testing.T, dir string) string {
 	t.Helper()
 	exe := filepath.Join(dir, exeName("wiretest"))
-	cmd := exec.Command("go", "build", "-o", exe, "github.com/intruder0007/Cli/core/plugin/wiretest")
+	cmd := exec.Command("go", "build", "-o", exe, "github.com/intruder0007/Lumo/core/plugin/wiretest")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("building wiretest responder: %v\n%s", err, out)
 	}

@@ -1,0 +1,49 @@
+name: Verify published npm package
+
+# Clean-machine verification of the *published* npm package
+# (lumo-cli@latest) — installs it from the registry into a
+# scratch prefix and runs the real binary through the shim. This is the
+# registry-level counterpart to the local tarball smoke test in
+# release.yml's publish-npm job: it proves registry propagation, the
+# published tarball, and the postinstall download path all work on
+# disposable machines, not just the release runner.
+#
+# Usable before the first publish too (it will fail with "not found"
+# until then, which is the expected signal that nothing is published
+# yet). Manual trigger only — it is a verification tool, not a gate.
+on:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install from the registry
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/npm-verify
+          npm install --prefix /tmp/npm-verify --no-audit --no-fund lumo-cli@latest
+      - name: Verify
+        run: |
+          /tmp/npm-verify/node_modules/.bin/lumo version
+          /tmp/npm-verify/node_modules/.bin/lumo plugins list | grep -q 'go-rest-api'
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install from the registry
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\npm-verify | Out-Null
+          npm install --prefix C:\npm-verify --no-audit --no-fund lumo-cli@latest
+      - name: Verify
+        shell: pwsh
+        run: |
+          & C:\npm-verify\node_modules\.bin\lumo.cmd version
+          & C:\npm-verify\node_modules\.bin\lumo.cmd plugins list | Select-String -Quiet 'go-rest-api'

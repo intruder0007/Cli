@@ -10,7 +10,7 @@ shape ADR-0010 used for distribution wrappers before they were built.
 
 ## What building it requires
 
-- A crates.io package `bootstrap-cli-plugin-sdk` (name not reserved —
+- A crates.io package `lumo-plugin-sdk` (name not reserved —
   placeholder), **zero dependencies**: the Rust standard library covers
   the entire transport (line-delimited JSON-RPC over stdio, exit on
   `plugin.shutdown`/EOF) — `std::io` + `serde`-free hand-rolled JSON is

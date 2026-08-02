@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/intruder0007/Cli/core/engine"
-	"github.com/intruder0007/Cli/core/plugin"
-	"github.com/intruder0007/Cli/core/registry"
+	"github.com/intruder0007/Lumo/core/engine"
+	"github.com/intruder0007/Lumo/core/plugin"
+	"github.com/intruder0007/Lumo/core/registry"
 )
 
 // Banner prints a small startup wordmark before the interactive wizard
@@ -16,35 +16,48 @@ import (
 // ASCII art, and it must still read cleanly in the minimal theme.
 func Banner(w io.Writer, t Theme) {
 	if t.UseIcons {
-		fmt.Fprintln(w, t.color("1;36", "Cli")+t.Dim("  — bootstrap a new project"))
+		fmt.Fprintln(w, t.Primary("Lumo")+t.Dim(" — a new project, ready in seconds"))
 	} else {
-		fmt.Fprintln(w, "Cli — bootstrap a new project")
+		fmt.Fprintln(w, "Lumo — a new project, ready in seconds")
 	}
+	fmt.Fprintln(w)
 }
 
-// SuccessScreen renders the result of a successful "bootstrap new" run:
+// SuccessScreen renders the result of a successful "lumo new" run:
 // a project summary (template, capabilities applied, file count), the
 // files written, and what to do next.
 func SuccessScreen(w io.Writer, t Theme, projectName string, s engine.Summary) {
 	fmt.Fprintln(w, t.Success(fmt.Sprintf("Generated %s", projectName)))
 
-	summaryLine := fmt.Sprintf("  template: %s  ·  %d file(s)", s.Template, len(s.FilesWritten))
+	summaryLine := fmt.Sprintf("template: %s · %d file(s)", s.Template, len(s.FilesWritten))
 	if len(s.CapabilitiesApplied) > 0 {
-		summaryLine += fmt.Sprintf("  ·  capabilities: %s", strings.Join(s.CapabilitiesApplied, ", "))
+		summaryLine += fmt.Sprintf(" · capabilities: %s", strings.Join(s.CapabilitiesApplied, ", "))
 	}
-	fmt.Fprintln(w, t.Dim(summaryLine))
+	fmt.Fprintln(w, t.Dim("  "+summaryLine))
 
 	if len(s.FilesWritten) > 0 {
 		fmt.Fprintln(w)
-		for _, f := range s.FilesWritten {
-			fmt.Fprintln(w, t.Info("  + "+f))
+		for i, f := range s.FilesWritten {
+			glyph := "+"
+			if t.UseIcons {
+				if i == len(s.FilesWritten)-1 {
+					glyph = "└─"
+				} else {
+					glyph = "├─"
+				}
+			}
+			fmt.Fprintln(w, t.Info("  "+glyph+" "+f))
 		}
 	}
 	if len(s.NextSteps) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, t.Header("Next steps:"))
+		arrow := "-"
+		if t.UseIcons {
+			arrow = "→"
+		}
 		for _, step := range s.NextSteps {
-			fmt.Fprintln(w, "  "+step)
+			fmt.Fprintln(w, "  "+t.Accent(arrow)+" "+step)
 		}
 	}
 }
@@ -55,10 +68,12 @@ func SuccessScreen(w io.Writer, t Theme, projectName string, s engine.Summary) {
 // the plugin protocol itself is separate, larger work (see the Phase 3
 // roadmap notes in docs/architecture/roadmap.md), not attempted here.
 func ErrorScreen(w io.Writer, t Theme, err error) {
+	fmt.Fprintln(w)
 	fmt.Fprintln(w, t.Failure(err.Error()))
 	if hint := suggestFix(err); hint != "" {
 		fmt.Fprintln(w, t.Dim("  "+hint))
 	}
+	fmt.Fprintln(w)
 }
 
 // suggestFix matches on typed errors first (errors.As walks the %w
@@ -69,11 +84,11 @@ func ErrorScreen(w io.Writer, t Theme, err error) {
 func suggestFix(err error) string {
 	var notFound *registry.TemplateNotFoundError
 	if errors.As(err, &notFound) {
-		return "hint: run `bootstrap plugins list` to see what's discoverable, and check CLI_PLUGIN_DIRS if templates/ isn't next to the binary."
+		return "hint: run `lumo plugins list` to see what's discoverable, and check LUMO_PLUGIN_DIRS if templates/ isn't next to the binary."
 	}
 	var capNotFound *registry.CapabilityNotFoundError
 	if errors.As(err, &capNotFound) {
-		return "hint: run `bootstrap plugins list` — the capability id must match a discovered plugin.json's capabilityId exactly."
+		return "hint: run `lumo plugins list` — the capability id must match a discovered plugin.json's capabilityId exactly."
 	}
 	var startErr *plugin.StartError
 	if errors.As(err, &startErr) {
@@ -103,21 +118,21 @@ func suggestFix(err error) string {
 	return ""
 }
 
-// HelpText is the top-level `bootstrap`/`bootstrap help` output.
-const HelpText = `usage: bootstrap <command> [flags]
+// HelpText is the top-level `lumo`/`lumo help` output.
+const HelpText = `usage: lumo <command> [flags]
 
-Running bootstrap with no arguments starts the interactive wizard
-(the same as 'bootstrap new').
+Running lumo with no arguments starts the interactive wizard
+(the same as 'lumo new').
 
 commands:
   new [project-name]   generate a new project (interactive wizard if no
-                        flags/answers given; run 'bootstrap new -h' for
+                        flags/answers given; run 'lumo new -h' for
                         non-interactive flags)
   plugins list          list discovered template and capability plugins
   plugins validate <dir>
                         check a plugin directory before shipping it:
                         manifest validity + binary identity/protocol
-                        handshake (run 'bootstrap plugins validate -h'
+                        handshake (run 'lumo plugins validate -h'
                         for details)
   config get theme      print the persisted theme (empty if unset)
   config set theme <name>
@@ -127,5 +142,5 @@ commands:
                         validity) and report pass/fail with hints
   version                print the CLI version, Go runtime, and platform
 
-Run 'bootstrap <command> -h' for flags on a specific command.
-Pass -verbose (or -v) to 'bootstrap new' for diagnostic logging on stderr.`
+Run 'lumo <command> -h' for flags on a specific command.
+Pass -verbose (or -v) to 'lumo new' for diagnostic logging on stderr.`

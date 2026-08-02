@@ -1,20 +1,20 @@
-# Installs the bootstrap CLI (github.com/intruder0007/Cli) on Windows:
+# Installs the lumo CLI (github.com/intruder0007/Lumo) on Windows:
 # downloads the matching release archive + SHA256SUMS.txt, verifies the
-# checksum, and installs just bootstrap.exe onto PATH. See
+# checksum, and installs just lumo.exe onto PATH. See
 # docs/architecture/adr/0012-universal-install-architecture.md — the
 # binary is self-sufficient (embeds its own plugin set as a fallback),
 # so this script never needs to preserve sibling directories the way a
 # package-manager formula extracting the whole archive does.
 #
 # Usage:
-#   iwr https://raw.githubusercontent.com/intruder0007/Cli/main/install.ps1 -useb | iex
+#   iwr https://raw.githubusercontent.com/intruder0007/Lumo/main/install.ps1 -useb | iex
 #   $env:VERSION = "v0.2.0"; iwr ... | iex   # pin a version
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "intruder0007/Cli"
+$Repo = "intruder0007/Lumo"
 $Version = if ($env:VERSION) { $env:VERSION } else { "latest" }
-$InstallDir = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } else { "$env:LOCALAPPDATA\Programs\bootstrap" }
+$InstallDir = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } else { "$env:LOCALAPPDATA\Programs\lumo" }
 
 if ($Version -eq "latest") {
     $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
@@ -44,13 +44,13 @@ try {
     $extractedDir = Join-Path $TmpDir "cli_${Version}_windows_${Arch}"
 
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-    Copy-Item -Path (Join-Path $extractedDir "bootstrap.exe") -Destination (Join-Path $InstallDir "bootstrap.exe") -Force
+    Copy-Item -Path (Join-Path $extractedDir "lumo.exe") -Destination (Join-Path $InstallDir "lumo.exe") -Force
 
-    Write-Host "Installed bootstrap $Version to $InstallDir\bootstrap.exe"
+    Write-Host "Installed lumo $Version to $InstallDir\lumo.exe"
 
     $onPath = ($env:Path -split ";") -contains $InstallDir
     if ($onPath) {
-        Write-Host "Run 'bootstrap new' to get started."
+        Write-Host "Run 'lumo new' to get started."
     } else {
         Write-Host "$InstallDir is not on your PATH. Add it, e.g.:"
         Write-Host "  [Environment]::SetEnvironmentVariable('Path', `"`$env:Path;$InstallDir`", 'User')"

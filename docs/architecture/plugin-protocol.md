@@ -15,7 +15,7 @@ Since ADR-0008, a manifest that fails to parse or fails `Validate()`
 (missing required field) is **skipped, not a hard failure** — one broken
 third-party plugin can't take down discovery of everything else.
 `Registry.DiscoverWithIssues()` reports what was skipped and why (`
-bootstrap plugins list` prints these to stderr).
+lumo plugins list` prints these to stderr).
 
 ## Manifest (`plugin.json`)
 
@@ -39,7 +39,7 @@ bootstrap plugins list` prints these to stderr).
 | `name` | string | yes | Unique plugin identifier; cross-checked against the running process's own report at `plugin.initialize`. |
 | `version` | string | yes | Plugin's own semver. |
 | `kind` | `"template"` \| `"capability"` | yes | |
-| `displayName` | string | yes | Shown in the wizard / `bootstrap plugins list`. |
+| `displayName` | string | yes | Shown in the wizard / `lumo plugins list`. |
 | `projectType`, `language`, `framework` | string | templates only | Must match wizard answer values. |
 | `supportedPlatforms` | []string | templates only, optional | GOOS values (`linux`/`darwin`/`windows`) this template supports. Empty means all platforms; `core/registry.ResolveTemplate` filters out non-matching platforms. See ADR-0009. |
 | `capabilityId` | string | capabilities only | Stable id selected in the capabilities step. |

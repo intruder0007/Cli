@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	sdk "github.com/intruder0007/Cli/sdk/go/sdk"
+	sdk "github.com/intruder0007/Lumo/sdk/go/sdk"
 )
 
 func writePlugin(t *testing.T, dir, name, manifestJSON string) {

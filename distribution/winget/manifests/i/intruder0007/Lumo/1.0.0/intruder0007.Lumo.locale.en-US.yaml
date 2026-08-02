@@ -1,0 +1,11 @@
+# Created for github.com/intruder0007/Lumo. See docs/architecture/distribution-protocol.md.
+PackageIdentifier: intruder0007.Lumo
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: intruder0007
+PackageName: Lumo
+License: MIT
+ShortDescription: Cross-language project scaffolding platform — generate new projects via a plugin-based CLI.
+PackageUrl: https://github.com/intruder0007/Lumo
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

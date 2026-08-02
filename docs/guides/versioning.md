@@ -54,7 +54,7 @@ Independent of the release semver:
 2. **Treat `sdk/go`'s exported API as stable** — code written against
    a release keeps compiling and behaving against later minor and
    patch releases of the same major.
-3. **Run `bootstrap plugins validate <dir>` before releasing** a
+3. **Run `lumo plugins validate <dir>` before releasing** a
    plugin, so a stale or swapped binary never ships (see the authoring
    guides).
 4. **Check the migration guide when upgrading** the CLI your plugin is

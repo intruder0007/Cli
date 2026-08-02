@@ -1,5 +1,5 @@
-module github.com/intruder0007/Cli/plugins/builtin/readme
+module github.com/intruder0007/Lumo/plugins/builtin/readme
 
 go 1.22
 
-require github.com/intruder0007/Cli/sdk/go v0.1.0
+require github.com/intruder0007/Lumo/sdk/go v0.1.0

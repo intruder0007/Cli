@@ -5,7 +5,7 @@ name: Release
 # cgo anywhere in this repo), and each archive is a self-contained
 # directory laid out exactly the way cli/main.go's pluginDirs() already
 # looks for plugins relative to the executable. Since ADR-0012, each
-# platform's bootstrap binary also embeds that platform's plugin
+# platform's lumo binary also embeds that platform's plugin
 # binaries via go:embed (cli/internal/embedded) — the archive layout
 # below is unchanged, but the binary itself no longer strictly depends
 # on the sibling directories surviving extraction intact.
@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -44,13 +45,13 @@ jobs:
             EXE=""
             if [ "$GOOS" = "windows" ]; then EXE=".exe"; fi
 
-            OUT="dist/cli_${VERSION}_${GOOS}_${GOARCH}"
+            OUT="dist/lumo_${VERSION}_${GOOS}_${GOARCH}"
             rm -rf "$OUT"
             mkdir -p "$OUT"
 
             # Plugins build first and are staged into cli's own embed
             # directory before cli builds — see ADR-0012 — so each
-            # platform's bootstrap binary embeds that same platform's
+            # platform's lumo binary embeds that same platform's
             # plugin binaries as a last-resort discovery fallback (e.g.
             # for `go install`, which produces only the one binary).
             EMBED_DIR="cli/internal/embedded/assets"
@@ -65,8 +66,8 @@ jobs:
               cp "$p/plugin.json" "$EMBED_DIR/$p/plugin.json"
             done
 
-            echo "== building bootstrap for $GOOS/$GOARCH =="
-            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=${VERSION}" -o "$OUT/bootstrap${EXE}" ./cli
+            echo "== building lumo for $GOOS/$GOARCH =="
+            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=${VERSION}" -o "$OUT/lumo${EXE}" ./cli
 
             cp LICENSE "$OUT/LICENSE"
             cp README.md "$OUT/README.md"
@@ -74,9 +75,9 @@ jobs:
             (
               cd dist
               if [ "$GOOS" = "windows" ]; then
-                zip -qr "cli_${VERSION}_${GOOS}_${GOARCH}.zip" "cli_${VERSION}_${GOOS}_${GOARCH}"
+                zip -qr "lumo_${VERSION}_${GOOS}_${GOARCH}.zip" "lumo_${VERSION}_${GOOS}_${GOARCH}"
               else
-                tar -czf "cli_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "cli_${VERSION}_${GOOS}_${GOARCH}"
+                tar -czf "lumo_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "lumo_${VERSION}_${GOOS}_${GOARCH}"
               fi
             )
             rm -rf "$OUT"
@@ -94,3 +95,62 @@ jobs:
           gh release create "${VERSION}" dist/*.tar.gz dist/*.zip dist/SHA256SUMS.txt \
             --title "${VERSION}" \
             --generate-notes
+
+  # Publishes the npm wrapper (distribution/npm) after the GitHub
+  # release exists: the wrapper's postinstall downloads the release
+  # archives, so asset-first ordering is not a preference, it's a
+  # correctness requirement. Guarded by the version-sync check below —
+  # the wrapper's package.json version must equal the tag, otherwise
+  # the job fails without publishing anything. Needs NPM_TOKEN (an
+  # npm automation token with publish rights for lumo-cli) in
+  # the repo's Actions secrets; until that secret exists this job is
+  # skipped (first publish: see docs/guides/releasing.md).
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ secrets.NPM_TOKEN != '' }}
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      - name: Check wrapper version matches the tag
+        run: |
+          set -euo pipefail
+          pkg_ver=$(node -p "require('./distribution/npm/package.json').version")
+          if [ "v${pkg_ver}" != "${VERSION}" ]; then
+            echo "::error::distribution/npm/package.json version (v${pkg_ver}) does not match tag (${VERSION}). Bump the wrapper version and tag together — see docs/guides/releasing.md."
+            exit 1
+          fi
+          echo "wrapper version v${pkg_ver} matches tag ${VERSION}"
+
+      # prepublishOnly (scripts/verify-release.js) also runs here: it
+      # re-checks that every release asset the postinstall needs exists,
+      # so a publish can never ship a wrapper whose install fails.
+      - name: Publish to npm
+        run: npm publish --provenance
+        working-directory: distribution/npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Clean-machine smoke test of the exact artifact that was just
+      # published (same tarball bytes). Registry-side verification of
+      # the published package can be re-run anytime via
+      # .github/workflows/npm-verify-published.yml.
+      - name: Smoke test the packed tarball on a clean prefix
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/npm-smoke
+          mkdir -p /tmp/npm-smoke/pack /tmp/npm-smoke/prefix
+          npm pack --pack-destination /tmp/npm-smoke/pack
+          npm install --prefix /tmp/npm-smoke/prefix /tmp/npm-smoke/pack/lumo-cli-*.tgz
+          /tmp/npm-smoke/prefix/node_modules/.bin/lumo version
+          /tmp/npm-smoke/prefix/node_modules/.bin/lumo plugins list | grep -q 'go-rest-api'
+        working-directory: distribution/npm

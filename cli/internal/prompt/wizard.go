@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,20 +11,31 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/intruder0007/Cli/core/config"
+	"github.com/intruder0007/Lumo/core/config"
 )
+
+// noTemplatesErr is returned by both wizard paths when discovery found
+// no template plugins: nothing the user could pick would resolve, so
+// the wizard fails fast instead of asking dead-end questions.
+func noTemplatesErr() error {
+	return errors.New("no template plugins found — run `lumo plugins list` to inspect discovery, and check LUMO_PLUGIN_DIRS if templates/ isn't next to the binary")
+}
 
 // RunWizard walks through project name, theme, project type, language,
 // framework, and capabilities, in that order, writing prompts to out.
-// When stdin and stdout are both real terminals, it uses the arrow-key/
-// space-select menus from menu.go; otherwise (piped input, CI, tests) it
-// falls back verbatim to plain numbered-list + line input, so no
-// non-interactive usage changes behavior. See ADR-0007.
-func RunWizard(out io.Writer) (config.Answers, error) {
+// Every menu is built from spec — the discovered template/capability
+// plugins — so the wizard only offers what's installed, and the
+// framework step is filtered by the chosen project type and language
+// (see WizardSpec). When stdin and stdout are both real terminals, it
+// uses the arrow-key/space-select menus from menu.go; otherwise (piped
+// input, CI, tests) it falls back verbatim to plain numbered-list +
+// line input, so no non-interactive usage changes behavior. See
+// ADR-0007.
+func RunWizard(out io.Writer, spec WizardSpec) (config.Answers, error) {
 	stdinFd := int(os.Stdin.Fd())
 	stdoutFd := int(os.Stdout.Fd())
 	if term.IsTerminal(stdinFd) && term.IsTerminal(stdoutFd) {
-		a, err := runWizardTUI(stdinFd, out)
+		a, err := runWizardTUI(stdinFd, out, spec)
 		switch err {
 		case nil, ErrCancelled:
 			return a, err
@@ -34,7 +46,7 @@ func RunWizard(out io.Writer) (config.Answers, error) {
 			fmt.Fprintln(out, "(falling back to plain input)")
 		}
 	}
-	return runWizardLine(bufio.NewReader(os.Stdin), out)
+	return runWizardLine(bufio.NewReader(os.Stdin), out, spec)
 }
 
 // runWizardTUI runs the arrow-key/space-select wizard. It puts the
@@ -45,8 +57,12 @@ func RunWizard(out io.Writer) (config.Answers, error) {
 // which is still possible even though the terminal itself won't
 // generate one locally. Notify is registered before MakeRaw so no
 // window exists in which an interrupt can't restore the terminal.
-func runWizardTUI(fd int, out io.Writer) (config.Answers, error) {
+func runWizardTUI(fd int, out io.Writer, spec WizardSpec) (config.Answers, error) {
 	var a config.Answers
+
+	if len(spec.Templates) == 0 {
+		return a, noTemplatesErr()
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
@@ -91,10 +107,19 @@ func runWizardTUI(fd int, out io.Writer) (config.Answers, error) {
 		defaultTheme = "default"
 	}
 
-	themeID, err := SelectMenu(out, in, GetTheme(defaultTheme, false), "Theme", themeOptions, defaultTheme)
+	// The capability step is skipped entirely when no capability
+	// plugins are installed, so step numbering is dynamic.
+	steps := 4
+	if len(spec.Capabilities) > 0 {
+		steps = 5
+	}
+	step := 1
+
+	themeID, err := SelectMenu(out, in, GetTheme(defaultTheme, false), fmt.Sprintf("Step %d of %d · Theme", step, steps), themeOptions, defaultTheme)
 	if err != nil {
 		return a, err
 	}
+	step++
 	a.Theme = themeID
 	t := GetTheme(a.Theme, false)
 
@@ -103,21 +128,29 @@ func runWizardTUI(fd int, out io.Writer) (config.Answers, error) {
 	cfg.Theme = a.Theme
 	_ = SaveConfig(cfg)
 
-	a.ProjectType, err = SelectMenu(out, in, t, "Project type", projectTypes, "backend-service")
+	projectTypes := spec.projectTypeOptions()
+	a.ProjectType, err = SelectMenu(out, in, t, fmt.Sprintf("Step %d of %d · Project type", step, steps), projectTypes, spec.defaultFor(projectTypes, "backend-service"))
 	if err != nil {
 		return a, err
 	}
-	a.Language, err = SelectMenu(out, in, t, "Language", languages, "go")
+	step++
+	langOpts := spec.languageOptions(a.ProjectType)
+	a.Language, err = SelectMenu(out, in, t, fmt.Sprintf("Step %d of %d · Language", step, steps), langOpts, spec.defaultFor(langOpts, "go"))
 	if err != nil {
 		return a, err
 	}
-	a.Framework, err = SelectMenu(out, in, t, "Framework", frameworks, "rest-api")
+	step++
+	fwOpts := spec.frameworkOptions(a.ProjectType, a.Language)
+	a.Framework, err = SelectMenu(out, in, t, fmt.Sprintf("Step %d of %d · Framework", step, steps), fwOpts, spec.defaultFor(fwOpts, "rest-api"))
 	if err != nil {
 		return a, err
 	}
-	a.Capabilities, err = MultiSelectMenu(out, in, t, "Capabilities (space to toggle, enter to confirm)", capabilityOptions)
-	if err != nil {
-		return a, err
+	if len(spec.Capabilities) > 0 {
+		step++
+		a.Capabilities, err = MultiSelectMenu(out, in, t, fmt.Sprintf("Step %d of %d · Capabilities (space to toggle, enter to confirm)", step, steps), spec.capabilityOptions())
+		if err != nil {
+			return a, err
+		}
 	}
 
 	return a, a.Validate()
@@ -158,8 +191,12 @@ func readLineRaw(r io.Reader, w io.Writer) (string, bool) {
 // both real terminals. Ctrl+C in cooked mode is a real SIGINT; the
 // handler prints "cancelled" and exits 130, matching the TUI path's
 // exit code.
-func runWizardLine(in *bufio.Reader, out io.Writer) (config.Answers, error) {
+func runWizardLine(in *bufio.Reader, out io.Writer, spec WizardSpec) (config.Answers, error) {
 	var a config.Answers
+
+	if len(spec.Templates) == 0 {
+		return a, noTemplatesErr()
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
@@ -177,10 +214,15 @@ func runWizardLine(in *bufio.Reader, out io.Writer) (config.Answers, error) {
 	}
 
 	a.Theme = askChoice(in, out, "Theme", themeOptions, "default")
-	a.ProjectType = askChoice(in, out, "Project type", projectTypes, "backend-service")
-	a.Language = askChoice(in, out, "Language", languages, "go")
-	a.Framework = askChoice(in, out, "Framework", frameworks, "rest-api")
-	a.Capabilities = askMulti(in, out, "Capabilities (comma-separated numbers or ids, blank for none)", capabilityOptions)
+	projectTypes := spec.projectTypeOptions()
+	a.ProjectType = askChoice(in, out, "Project type", projectTypes, spec.defaultFor(projectTypes, "backend-service"))
+	langOpts := spec.languageOptions(a.ProjectType)
+	a.Language = askChoice(in, out, "Language", langOpts, spec.defaultFor(langOpts, "go"))
+	fwOpts := spec.frameworkOptions(a.ProjectType, a.Language)
+	a.Framework = askChoice(in, out, "Framework", fwOpts, spec.defaultFor(fwOpts, "rest-api"))
+	if len(spec.Capabilities) > 0 {
+		a.Capabilities = askMulti(in, out, "Capabilities (comma-separated numbers or ids, blank for none)", spec.capabilityOptions())
+	}
 
 	return a, a.Validate()
 }

@@ -14,7 +14,7 @@
 
 # Generated projects created by running the CLI locally during development
 /tmp-generated/
-/.bootstrap-out/
+/.lumo-out/
 
 # Plugin binaries + manifests staged for go:embed (see Makefile's
 # stage-embedded target and .github/workflows/release.yml) — generated,
@@ -40,3 +40,8 @@ Thumbs.db
 # Env / local secrets
 .env
 .env.local
+
+# docs not to add to the repo
+project-report.md   
+engineering-report.md 
+engineering-report-npm.md

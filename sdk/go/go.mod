@@ -1,3 +1,3 @@
-module github.com/intruder0007/Cli/sdk/go
+module github.com/intruder0007/Lumo/sdk/go
 
 go 1.22

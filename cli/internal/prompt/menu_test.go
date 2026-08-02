@@ -91,6 +91,62 @@ func TestSelectMenuCancel(t *testing.T) {
 	}
 }
 
+func TestSelectMenuFuzzyFilter(t *testing.T) {
+	// Typing "et" — a fuzzy subsequence of "Beta" — filters the list to
+	// Beta; enter confirms it.
+	in := bytes.NewReader([]byte("et\r"))
+	var out bytes.Buffer
+	got, err := SelectMenu(&out, in, GetTheme("minimal", false), "Pick", testOpts, "a")
+	if err != nil {
+		t.Fatalf("SelectMenu: %v", err)
+	}
+	if got != "b" {
+		t.Errorf("typed \"et\" then enter: got %q, want %q (fuzzy match on \"Beta\")", got, "b")
+	}
+}
+
+func TestSelectMenuEscClearsFilterThenCancels(t *testing.T) {
+	// "et" filters to Beta; a bare ESC clears the filter instead of
+	// cancelling, so the next enter confirms the default "a".
+	in := bytes.NewReader([]byte("et\x1b\r"))
+	var out bytes.Buffer
+	got, err := SelectMenu(&out, in, GetTheme("minimal", false), "Pick", testOpts, "a")
+	if err != nil {
+		t.Fatalf("SelectMenu: %v", err)
+	}
+	if got != "a" {
+		t.Errorf("typed \"et\", ESC, enter: got %q, want %q (ESC clears the filter, doesn't cancel)", got, "a")
+	}
+}
+
+func TestSelectMenuFilterNoMatchesEnterDoesNothing(t *testing.T) {
+	// "zzz" matches nothing and enter must not select (or panic);
+	// backspaces clear the filter, then enter picks the default.
+	in := bytes.NewReader([]byte("zzz\x7f\x7f\x7f\r"))
+	var out bytes.Buffer
+	got, err := SelectMenu(&out, in, GetTheme("minimal", false), "Pick", testOpts, "a")
+	if err != nil {
+		t.Fatalf("SelectMenu: %v", err)
+	}
+	if got != "a" {
+		t.Errorf("typed \"zzz\", cleared with backspace, enter: got %q, want %q", got, "a")
+	}
+}
+
+func TestMultiSelectMenuFuzzyToggle(t *testing.T) {
+	// Typing "al" filters to Alpha; space toggles it; enter confirms.
+	in := bytes.NewReader([]byte("al \r"))
+	var out bytes.Buffer
+	got, err := MultiSelectMenu(&out, in, GetTheme("minimal", false), "Pick", testOpts)
+	if err != nil {
+		t.Fatalf("MultiSelectMenu: %v", err)
+	}
+	want := []string{"a"}
+	if len(got) != len(want) || got[0] != want[0] {
+		t.Errorf("typed \"al\", space, enter: got %v, want %v", got, want)
+	}
+}
+
 func TestMultiSelectMenuToggleAndConfirm(t *testing.T) {
 	// space (select "a"), down, space (select "b"), enter.
 	in := bytes.NewReader([]byte(" \x1b[B \r"))

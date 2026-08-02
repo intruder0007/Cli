@@ -33,7 +33,7 @@ subprocesses over the protocol in [plugin-protocol.md](plugin-protocol.md).
 The only code shared between `core` and plugin authors is `sdk/go`'s wire
 types, which both sides depend on independently.
 
-## Request flow (`bootstrap new`)
+## Request flow (`lumo new`)
 
 1. `cli` collects `Answers{Theme, ProjectType, Language, Framework,
    Capabilities[]}` — interactively (wizard) or from flags/`--answers` file.

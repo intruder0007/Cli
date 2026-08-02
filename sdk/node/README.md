@@ -10,7 +10,7 @@ shape ADR-0010 used for distribution wrappers before they were built.
 
 ## What building it requires
 
-- An npm package `@intruder0007/cli-plugin-sdk` (name not reserved —
+- An npm package `@intruder0007/lumo-plugin-sdk` (name not reserved —
   placeholder), **zero npm dependencies**: `fs`, `readline`,
   `process`, `JSON` cover the entire transport (line-delimited JSON-RPC
   over stdio, exit on `plugin.shutdown`/EOF).

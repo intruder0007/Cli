@@ -1,0 +1,14 @@
+# Created for github.com/intruder0007/Lumo. See docs/architecture/distribution-protocol.md.
+PackageIdentifier: intruder0007.Lumo
+PackageVersion: 1.0.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: lumo_v1.0.0_windows_amd64/lumo.exe
+    PortableCommandAlias: lumo
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/intruder0007/Lumo/releases/download/v1.0.0/lumo_v1.0.0_windows_amd64.zip
+    InstallerSha256: 05CE82ABDE6942CA3236B41EE8C39EABFD483C16FF0B1125026E5DF2FD53D427
+ManifestType: installer
+ManifestVersion: 1.6.0
