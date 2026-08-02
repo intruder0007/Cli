@@ -127,7 +127,7 @@ Full details and flags: [`docs/cli/usage.md`](../cli/usage.md).
 
 | Command | Contract |
 |---|---|
-| `bootstrap new` | Interactive wizard; `--non-interactive` (positional `name` + flags) and `--answers <file>` scriptable paths; `--verbose`/`-v` diagnostics. |
+| `bootstrap new` | Interactive wizard; non-interactive whenever a positional `name` or any flag is given — there is no `--non-interactive` flag, it's implicit (and `--answers <file>` is the scriptable path); `--verbose`/`-v` diagnostics. |
 | `bootstrap plugins list` | Lists discovered template and capability plugins (name, kind, version). |
 | `bootstrap plugins validate <plugin-dir>` | Pre-release check; exit 0 = valid, 1 = invalid. |
 | `bootstrap config get theme` / `bootstrap config set theme <name>` | Theme persistence. |

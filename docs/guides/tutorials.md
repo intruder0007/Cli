@@ -20,8 +20,12 @@ go mod init license-plugin
 go get github.com/intruder0007/Cli/sdk/go@latest
 ```
 
-(The SDK is published as a normal Go module; within this repository
-the `go.work` workspace resolves it in place.)
+(The SDK is a normal Go module, but as of v0.3.0 no
+`sdk/go/vX.Y.Z` submodule tags are published yet, so `go get
+...@latest` won't resolve until the first tagged release. Until then,
+add `replace github.com/intruder0007/Cli/sdk/go => /path/to/this/repo/sdk/go`
+to your `go.mod`, or build inside the repository, where the `go.work`
+workspace resolves it in place.)
 
 ### 2. Implement the plugin
 
@@ -106,6 +110,9 @@ mkdir hello-template && cd hello-template
 go mod init hello-template
 go get github.com/intruder0007/Cli/sdk/go@latest
 ```
+
+(No `sdk/go/vX.Y.Z` submodule tag exists yet — same `replace` or
+in-repo setup as Tutorial 1's step 1.)
 
 `main.go`:
 

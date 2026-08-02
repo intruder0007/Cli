@@ -6,6 +6,7 @@
 package prompt
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -102,6 +103,12 @@ func ParseAnswersFile(path string) (config.Answers, error) {
 				}
 			}
 		}
+	}
+	// A file that sets no fields (or only unknown ones) is almost always
+	// a path typo or a format mistake — validate the full answer set now,
+	// so the user learns about it before any codegen runs.
+	if err := a.Validate(); err != nil {
+		return a, fmt.Errorf("validating answers file %s: %w", path, err)
 	}
 	return a, nil
 }

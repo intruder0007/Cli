@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"time"
 
@@ -28,6 +29,12 @@ type Host struct {
 	// Logger receives diagnostic lines (spawn, handshake, timing). Nil
 	// means silent — see logger().
 	Logger diag.Logger
+	// Stderr receives the plugin process's stderr (protocol-reserved for
+	// human-readable plugin logs — docs/architecture/plugin-protocol.md).
+	// Nil means the plugin's stderr is discarded, matching os/exec's
+	// default. `bootstrap new --verbose` wires this to os.Stderr so a
+	// hung or failing plugin's logs surface.
+	Stderr io.Writer
 }
 
 // NewHost returns a Host with sane defaults.
@@ -120,12 +127,14 @@ type initializeResult struct {
 // session wraps one running plugin process for the duration of a single
 // generate-or-apply call. cmd is nil in tests that construct a session
 // directly around an io.Pipe rather than a real subprocess — call()
-// itself never touches cmd, only finish() does.
+// itself never touches cmd, only finish() does. stdinCloser closes the
+// subprocess's stdin (see finish's comment); it is nil in test sessions.
 type session struct {
-	cmd    *exec.Cmd
-	stdin  *bufio.Writer
-	stdout *bufio.Reader
-	nextID int
+	cmd         *exec.Cmd
+	stdin       *bufio.Writer
+	stdout      *bufio.Reader
+	stdinCloser io.Closer
+	nextID      int
 }
 
 func (h *Host) start(entrypointPath string) (*session, error) {
@@ -136,15 +145,22 @@ func (h *Host) start(entrypointPath string) (*session, error) {
 	}
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
+		stdinPipe.Close()
 		return nil, &StartError{EntrypointPath: entrypointPath, Err: err}
 	}
+	if h.Stderr != nil {
+		cmd.Stderr = h.Stderr
+	}
 	if err := cmd.Start(); err != nil {
+		stdinPipe.Close()
+		stdoutPipe.Close()
 		return nil, &StartError{EntrypointPath: entrypointPath, Err: err}
 	}
 	return &session{
-		cmd:    cmd,
-		stdin:  bufio.NewWriter(stdinPipe),
-		stdout: bufio.NewReader(stdoutPipe),
+		cmd:         cmd,
+		stdin:       bufio.NewWriter(stdinPipe),
+		stdout:      bufio.NewReader(stdoutPipe),
+		stdinCloser: stdinPipe,
 	}, nil
 }
 
@@ -190,6 +206,11 @@ func (s *session) call(timeout time.Duration, method string, params interface{},
 	if err := json.Unmarshal(outcome.line, &resp); err != nil {
 		return fmt.Errorf("plugin: decoding response to %s: %w", method, err)
 	}
+	// A stale response from a previous timed-out call must never be
+	// attributed to this request: the id in the response must match.
+	if resp.ID != req.ID {
+		return fmt.Errorf("plugin: response to %s has id %d, want %d (stale response after a previous timeout?)", method, resp.ID, req.ID)
+	}
 	if resp.Error != nil {
 		return fmt.Errorf("plugin: %s failed: %s", method, resp.Error.Message)
 	}
@@ -201,16 +222,30 @@ func (s *session) call(timeout time.Duration, method string, params interface{},
 	return nil
 }
 
+// finish performs an orderly shutdown: it sends plugin.shutdown, then
+// closes the plugin's stdin (the protocol documents EOF as a clean exit,
+// so a hand-rolled plugin that exits on EOF finishes cleanly too), and
+// waits up to ShutdownTimeout for the process to exit, killing it if it
+// doesn't. The shutdown call is bounded by ShutdownTimeout (not
+// CallTimeout) — a plugin that already failed to answer a call in time
+// shouldn't get a second full timeout budget just to say goodbye.
 func (h *Host) finish(s *session) {
 	if s.cmd == nil {
 		return // test session with no real process
 	}
-	_ = s.call(h.callTimeout(), "plugin.shutdown", struct{}{}, nil)
+	log := h.logger()
+	if err := s.call(h.ShutdownTimeout, "plugin.shutdown", struct{}{}, nil); err != nil {
+		log.Logf("plugin: shutdown call failed: %v", err)
+	}
+	if s.stdinCloser != nil {
+		_ = s.stdinCloser.Close()
+	}
 	done := make(chan error, 1)
 	go func() { done <- s.cmd.Wait() }()
 	select {
 	case <-done:
 	case <-time.After(h.ShutdownTimeout):
+		log.Logf("plugin: process did not exit within %s, killing it", h.ShutdownTimeout)
 		_ = s.cmd.Process.Kill()
 	}
 }
@@ -223,6 +258,9 @@ func (h *Host) initialize(s *session, expectedName, expectedProtocolVersion stri
 	var result initializeResult
 	if err := s.call(h.callTimeout(), "plugin.initialize", map[string]string{"protocolVersion": sdk.ProtocolVersion}, &result); err != nil {
 		return err
+	}
+	if !result.OK {
+		return fmt.Errorf("plugin %q reported initialize failure (ok: false)", expectedName)
 	}
 	if result.Manifest.ProtocolVersion != expectedProtocolVersion {
 		return &ProtocolMismatchError{PluginName: expectedName, Want: expectedProtocolVersion, Got: result.Manifest.ProtocolVersion}

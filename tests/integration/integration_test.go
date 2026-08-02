@@ -7,6 +7,7 @@
 package integration
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -321,6 +322,61 @@ func TestPluginsValidateCommand(t *testing.T) {
 	}
 }
 
+// TestGithubActionsCIRefusesNonGoProject pins the language gate: the
+// capability writes a Go-only workflow, so selecting it for a Node
+// project must fail with a clear error — before the workflow file is
+// written — rather than silently generating a CI config that can never
+// be green.
+func TestGithubActionsCIRefusesNonGoProject(t *testing.T) {
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("bootstrap"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "node-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/node-rest-api", filepath.Join(templateDir, exeName("node-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "node-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	capDir := filepath.Join(bin, "plugins", "builtin", "github-actions-ci")
+	if err := os.MkdirAll(capDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "plugins/builtin/github-actions-ci", filepath.Join(capDir, exeName("github-actions-ci")))
+	copyFile(t, filepath.Join(root, "plugins", "builtin", "github-actions-ci", "plugin.json"), filepath.Join(capDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	cmd := exec.Command(cliPath, "new", "node-ci-demo",
+		"--project-type", "backend-service",
+		"--language", "node",
+		"--framework", "http-api",
+		"--capabilities", "github-actions-ci",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "CLI_PLUGIN_DIRS="+filepath.Join(bin, "templates")+string(os.PathListSeparator)+filepath.Join(bin, "plugins", "builtin"))
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("got err=%v, want exit code 1\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "only supports Go") {
+		t.Errorf("error should explain the Go-only gate, got:\n%s", out)
+	}
+	// The template still generated (generation happens before apply), but
+	// the workflow file must not exist.
+	projectDir := filepath.Join(genParent, "node-ci-demo")
+	if _, statErr := os.Stat(filepath.Join(projectDir, "package.json")); statErr != nil {
+		t.Errorf("project should have been generated before the capability gate fired: %v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(projectDir, ".github", "workflows", "ci.yml")); statErr == nil {
+		t.Error("ci.yml must not be written for a non-Go project")
+	}
+}
+
 // stageEmbedded builds the V1 template/capability binaries and copies
 // them (plus their plugin.json manifests) into embedAssets, mirroring
 // exactly what the Makefile's stage-embedded target and release.yml's
@@ -364,4 +420,127 @@ func envWithout(env []string, name string) []string {
 		out = append(out, e)
 	}
 	return out
+}
+
+// buildCLI builds the bootstrap binary alone (no plugin dirs) — enough
+// for the argument-parsing and pre-registry guard tests below, which
+// fail before any plugin discovery matters.
+func buildCLI(t *testing.T, root string) string {
+	t.Helper()
+	bin := t.TempDir()
+	cliPath := filepath.Join(bin, exeName("bootstrap"))
+	buildBinary(t, root, "cli", cliPath)
+	return cliPath
+}
+
+// TestNewRejectsExtraPositionalArguments: `bootstrap new` takes at most
+// one positional (the project name). Anything more is a usage error,
+// not something to silently ignore — and it must be caught before any
+// plugin discovery, generation, or filesystem side effect.
+func TestNewRejectsExtraPositionalArguments(t *testing.T) {
+	cliPath := buildCLI(t, repoRoot(t))
+
+	cmd := exec.Command(cliPath, "new", "demo", "stray-arg")
+	cmd.Dir = t.TempDir()
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
+		t.Fatalf("got err=%v, want exit code 2 (usage error)\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "stray-arg") {
+		t.Errorf("stderr should name the offending argument, got:\n%s", out)
+	}
+}
+
+// TestNewRejectsAnswersFileCombinedWithPositional: the project name
+// belongs in the answers file when --answers is given; combining both
+// is ambiguous and must be rejected up front (exit 2), even if the
+// answers file itself doesn't exist yet.
+func TestNewRejectsAnswersFileCombinedWithPositional(t *testing.T) {
+	cliPath := buildCLI(t, repoRoot(t))
+
+	cmd := exec.Command(cliPath, "new", "demo", "--answers", filepath.Join(t.TempDir(), "missing.txt"))
+	cmd.Dir = t.TempDir()
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
+		t.Fatalf("got err=%v, want exit code 2 (usage error)\n%s", err, out)
+	}
+}
+
+// TestNewRefusesNonEmptyTargetDirectory: plugins write files
+// unconditionally, so generating into an existing non-empty directory
+// would silently overwrite — the guard must refuse before any plugin
+// runs (it needs no plugin dirs at all to trigger).
+func TestNewRefusesNonEmptyTargetDirectory(t *testing.T) {
+	cliPath := buildCLI(t, repoRoot(t))
+
+	genParent := t.TempDir()
+	existing := filepath.Join(genParent, "taken")
+	if err := os.MkdirAll(existing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(existing, "keep.txt"), []byte("mine"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(cliPath, "new", "taken",
+		"--project-type", "backend-service",
+		"--language", "go",
+		"--framework", "rest-api",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("got err=%v, want exit code 1\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "not empty") {
+		t.Errorf("error should explain the directory is not empty, got:\n%s", out)
+	}
+	// The existing file must be untouched.
+	data, readErr := os.ReadFile(filepath.Join(existing, "keep.txt"))
+	if readErr != nil || string(data) != "mine" {
+		t.Errorf("existing file was modified: data=%q err=%v", data, readErr)
+	}
+}
+
+// TestNewRejectsUnknownTheme: an invalid --theme must fail validation
+// with a clear error (exit 1), not silently fall back to "default".
+func TestNewRejectsUnknownTheme(t *testing.T) {
+	cliPath := buildCLI(t, repoRoot(t))
+
+	cmd := exec.Command(cliPath, "new", "demo",
+		"--project-type", "backend-service",
+		"--language", "go",
+		"--framework", "rest-api",
+		"--theme", "neon",
+	)
+	cmd.Dir = t.TempDir()
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("got err=%v, want exit code 1\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "unknown theme") {
+		t.Errorf("error should mention the unknown theme, got:\n%s", out)
+	}
+}
+
+// TestConfigSetThemeRejectsUnknownTheme: `config set theme` persists a
+// theme, so an unknown one must be rejected before anything is written.
+func TestConfigSetThemeRejectsUnknownTheme(t *testing.T) {
+	cliPath := buildCLI(t, repoRoot(t))
+
+	cmd := exec.Command(cliPath, "config", "set", "theme", "neon")
+	cmd.Dir = t.TempDir()
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("got err=%v, want exit code 1\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "unknown theme") {
+		t.Errorf("error should mention the unknown theme, got:\n%s", out)
+	}
 }

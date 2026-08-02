@@ -246,6 +246,12 @@ interactive wizard. Flags below make it non-interactive.`)
 	fs.BoolVar(verbose, "v", false, "shorthand for -verbose")
 	fs.Parse(rest)
 
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "error: unexpected argument(s): %s\n", strings.Join(fs.Args(), " "))
+		fs.Usage()
+		os.Exit(2)
+	}
+
 	noColorEnv := os.Getenv("NO_COLOR") != ""
 	interactive := *answersFile == "" && projectName == "" && *theme == "" && *projectType == "" && *language == "" && *framework == "" && *caps == ""
 
@@ -254,6 +260,11 @@ interactive wizard. Flags below make it non-interactive.`)
 
 	switch {
 	case *answersFile != "":
+		if projectName != "" {
+			fs.Usage()
+			fmt.Fprintln(os.Stderr, "error: --answers and a positional project name can't be combined (the project name belongs in the answers file)")
+			os.Exit(2)
+		}
 		a, err = prompt.ParseAnswersFile(*answersFile)
 	case !interactive:
 		if *theme == "" {
@@ -296,6 +307,28 @@ interactive wizard. Flags below make it non-interactive.`)
 		os.Exit(1)
 	}
 
+	// Refuse to generate into a directory that already has content —
+	// plugins write files unconditionally, so running `bootstrap new
+	// existing-project` (or re-running it) would silently overwrite.
+	if info, statErr := os.Stat(targetDir); statErr == nil {
+		if !info.IsDir() {
+			prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("target %s is a file, not a directory", targetDir))
+			os.Exit(1)
+		}
+		entries, readErr := os.ReadDir(targetDir)
+		if readErr != nil {
+			prompt.ErrorScreen(os.Stdout, t, readErr)
+			os.Exit(1)
+		}
+		if len(entries) > 0 {
+			prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("target directory %s already exists and is not empty (generating would overwrite existing files)", targetDir))
+			os.Exit(1)
+		}
+	} else if !os.IsNotExist(statErr) {
+		prompt.ErrorScreen(os.Stdout, t, statErr)
+		os.Exit(1)
+	}
+
 	var logger diag.Logger = diag.NoopLogger{}
 	if *verbose {
 		logger = diag.WriterLogger{W: os.Stderr}
@@ -304,6 +337,12 @@ interactive wizard. Flags below make it non-interactive.`)
 	reg := registry.New(pluginDirs()...)
 	host := plugin.NewHost()
 	host.Logger = logger
+	if *verbose {
+		// Surface plugin stderr (protocol-reserved for plugin logs) so a
+		// hung or failing plugin's own output is visible — it's otherwise
+		// discarded by default (see core/plugin.Host.Stderr).
+		host.Stderr = os.Stderr
+	}
 	eng := engine.New(reg, host)
 	eng.Logger = logger
 
@@ -368,7 +407,14 @@ func cmdPluginsList(args []string) {
 // Exits 0 on success, 1 on any failure.
 func cmdPluginsValidate(args []string) {
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, "usage: bootstrap plugins validate <plugin-dir>") }
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, `usage: bootstrap plugins validate <plugin-dir>
+
+Checks a plugin directory before shipping it: plugin.json must parse
+and pass Manifest.Validate(), and the entrypoint binary must spawn and
+pass the plugin.initialize identity/protocol cross-check against the
+on-disk manifest (catching a stale or swapped binary). Exit 0 = valid.`)
+	}
 	fs.Parse(args)
 
 	if fs.NArg() != 1 {
@@ -521,7 +567,11 @@ func cmdConfigSetTheme(rest []string) {
 		fmt.Fprintf(os.Stderr, "unknown theme %q (want one of: %s)\n", name, strings.Join(prompt.ThemeNames(), ", "))
 		os.Exit(1)
 	}
-	cfg, _ := prompt.LoadConfig()
+	cfg, err := prompt.LoadConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
 	cfg.Theme = name
 	if err := prompt.SaveConfig(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)

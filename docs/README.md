@@ -23,6 +23,9 @@ platform (plugin/template authors, SDK users, wrapper maintainers).
   which surfaces are Stable and what changing them requires.
 - [`docs/architecture/sdk-architecture.md`](architecture/sdk-architecture.md) —
   the language-neutral spec every SDK implementation follows.
+- [`docs/architecture/codebase-audit.md`](architecture/codebase-audit.md) —
+  the Phase F written audit: findings, fixes, verified-correct
+  surfaces, and residual items.
 - [`docs/architecture/roadmap.md`](architecture/roadmap.md) — what's
   shipped, deferred, and planned.
 - [`docs/architecture/adr/`](architecture/adr/) — the decision records,
