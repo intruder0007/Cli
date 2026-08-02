@@ -106,6 +106,9 @@ func suggestFix(err error) string {
 // HelpText is the top-level `bootstrap`/`bootstrap help` output.
 const HelpText = `usage: bootstrap <command> [flags]
 
+Running bootstrap with no arguments starts the interactive wizard
+(the same as 'bootstrap new').
+
 commands:
   new [project-name]   generate a new project (interactive wizard if no
                         flags/answers given; run 'bootstrap new -h' for

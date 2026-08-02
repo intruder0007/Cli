@@ -6,6 +6,9 @@
 bootstrap new
 ```
 
+Running `bootstrap` with no arguments at all (including double-clicking
+the binary on Windows) is the same as `bootstrap new`.
+
 When run in a real terminal (stdin and stdout both TTYs), this is an
 arrow-key wizard: `↑`/`↓` (or vim-style `j`/`k`) move the highlight,
 `enter` confirms, `space` toggles a checkbox in the capabilities step,

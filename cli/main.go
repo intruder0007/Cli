@@ -30,8 +30,14 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, prompt.HelpText)
-		os.Exit(1)
+		// No command given (e.g. double-clicking bootstrap.exe, or typing
+		// `bootstrap` at a shell): start the interactive wizard — the
+		// intuitive behavior for personal use. Under piped/non-terminal
+		// stdin the wizard's line fallback hits EOF and fails with
+		// "project name is required" (exit 1); scripts should always pass
+		// a command. `bootstrap help` still prints the command reference.
+		cmdNew(nil)
+		return
 	}
 
 	switch os.Args[1] {

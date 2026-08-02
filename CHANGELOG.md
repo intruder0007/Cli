@@ -17,6 +17,12 @@ for how to add an entry.
 
 ### Added
 
+- Running `bootstrap` with no arguments now starts the interactive
+  wizard (the same as `bootstrap new`) instead of printing help and
+  exiting — this is what double-clicking the binary on Windows does, so
+  the wizard actually opens now. Under piped stdin (scripts) it hits
+  the wizard's EOF path and fails with "project name is required"
+  (exit 1); `bootstrap help` still prints the command reference.
 - Public API compatibility policy (ADR-0013 + `api-compatibility.md`):
   an explicit inventory of every public surface with its stability
   stage (Stable: wire protocol, `sdk/go`, CLI commands, distribution
