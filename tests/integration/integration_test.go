@@ -433,6 +433,31 @@ func buildCLI(t *testing.T, root string) string {
 	return cliPath
 }
 
+// TestBareBootstrapRunsTheWizard pins the no-arguments routing: bare
+// `bootstrap` (what double-clicking the binary does) must enter the
+// wizard, not print help and exit. With piped stdin there's no TTY, so
+// the wizard's line fallback reads EOF and fails with "project name is
+// required" (exit 1) — this test pins that routing so a regression can't
+// silently return to the "prints help, closes instantly" behavior.
+func TestBareBootstrapRunsTheWizard(t *testing.T) {
+	cliPath := buildCLI(t, repoRoot(t))
+
+	cmd := exec.Command(cliPath)
+	cmd.Dir = t.TempDir()
+	cmd.Stdin = strings.NewReader("")
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("got err=%v, want exit code 1 (wizard EOF path)\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "project name is required") {
+		t.Errorf("bare bootstrap should have entered the wizard and failed on EOF, got:\n%s", out)
+	}
+	if strings.Contains(string(out), "usage: bootstrap") {
+		t.Errorf("bare bootstrap should not print the help text anymore, got:\n%s", out)
+	}
+}
+
 // TestNewRejectsExtraPositionalArguments: `bootstrap new` takes at most
 // one positional (the project name). Anything more is a usage error,
 // not something to silently ignore — and it must be caught before any
