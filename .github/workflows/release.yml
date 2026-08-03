@@ -108,9 +108,10 @@ jobs:
   publish-npm:
     needs: release
     runs-on: ubuntu-latest
-    if: ${{ secrets.NPM_TOKEN != '' }}
+    if: ${{ env.NPM_TOKEN != '' }}
     env:
       VERSION: ${{ github.ref_name }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
