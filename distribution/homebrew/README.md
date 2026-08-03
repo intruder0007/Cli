@@ -4,16 +4,16 @@ Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 Simplest of the 8 — no wrapper process needed at all.
 
 `lumo.rb`: per-`on_macos`/`on_linux` + per-`Hardware::CPU.arm?`
-`url`/`sha256` blocks pointing at the real `v0.3.0` release assets and
+`url`/`sha256` blocks pointing at the real `v0.4.0` release assets and
 their real checksums (from the published `SHA256SUMS.txt`). `install`
 stages the **whole** extracted directory into `libexec` and symlinks
 only `lumo` into `bin` — the simplified `bin.install "lumo"`
 that ADR-0012's embedded-plugin fallback eventually allows isn't used
-because `v0.3.0` ships the sibling `templates/`/`plugins/builtin/`
+because `v0.4.0` ships the sibling `templates/`/`plugins/builtin/`
 directories anyway and the whole-archive pattern stays the conservative
 choice (see the formula's own comment, and ADR-0012's "don't simplify
 the archive without a measurable need" decision). Includes a `test do`
-block that runs `lumo version` and `lumo doctor`.
+block that runs `lumo version`.
 
 **Verified in CI** (`.github/workflows/distribution-verify.yml`,
 `homebrew` job, `macos-latest`): `brew install --formula

@@ -18,21 +18,21 @@ class Lumo < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/intruder0007/Lumo/releases/download/v0.3.0/lumo_v1.0.0_darwin_arm64.tar.gz"
-      sha256 "2bbce76476399baf1b8b6cc66a0413d477ca433bd1bce06396dead49c389820e"
+      url "https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_darwin_arm64.tar.gz"
+      sha256 "f1368fa64075a6a0bd9e0a4a13b7c9407759c898750ca938499ff604dbb5b69f"
     else
-      url "https://github.com/intruder0007/Lumo/releases/download/v0.3.0/lumo_v1.0.0_darwin_amd64.tar.gz"
-      sha256 "3573db24c99a885d089766baf9dc612727d39011e37ebcb6048f1ea539d114e1"
+      url "https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_darwin_amd64.tar.gz"
+      sha256 "6953401c0c8bc9d923ab30a2bc980e09fe6c6f12695d8f440bfb00b170813aad"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/intruder0007/Lumo/releases/download/v0.3.0/lumo_v1.0.0_linux_arm64.tar.gz"
-      sha256 "a72431abe33c0c66111c79a3bae3e2976a04a7003c156f350f87256295c34d99"
+      url "https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_linux_arm64.tar.gz"
+      sha256 "8aaefa766a227fc950841ea2d278a017814edf3eb89f89193fa6151cb0ca336c"
     else
-      url "https://github.com/intruder0007/Lumo/releases/download/v0.3.0/lumo_v1.0.0_linux_amd64.tar.gz"
-      sha256 "40e5bfb27205669312387e10c84db624ce500d4dad46a7317edd04d4e046a92e"
+      url "https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_linux_amd64.tar.gz"
+      sha256 "fccf79b964911215da618e85806db2745289299cc6f46ac2ff9fe5004f954d07"
     end
   end
 

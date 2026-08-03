@@ -3,8 +3,8 @@
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 
 `lumo.nuspec` + `tools/chocolateyinstall.ps1` using
-`Install-ChocolateyZipPackage` against the real `v0.3.0`
-`lumo_v0.3.0_windows_amd64.zip` release asset, with its real checksum
+`Install-ChocolateyZipPackage` against the real `v0.4.0`
+`lumo_v0.4.0_windows_amd64.zip` release asset, with its real checksum
 (from the published `SHA256SUMS.txt`) passed as `-Checksum`, extracting
 to `$toolsDir` — the whole archive, not just the binary, so
 `templates/`/`plugins/builtin` land alongside it — and letting

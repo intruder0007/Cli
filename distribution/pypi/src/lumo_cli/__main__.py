@@ -22,7 +22,7 @@ import urllib.request
 import zipfile
 
 REPO = "intruder0007/Lumo"
-VERSION = "v0.3.0"  # tracks this wrapper's own package version
+VERSION = "v0.4.0"  # tracks this wrapper's own package version
 
 
 def _platform_target():

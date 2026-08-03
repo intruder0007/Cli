@@ -3,9 +3,9 @@
   "description": "Cross-language project scaffolding platform: generate new projects via a plugin-based CLI.",
   "homepage": "https://github.com/intruder0007/Lumo",
   "license": "MIT",
-  "url": "https://github.com/intruder0007/Lumo/releases/download/v0.3.0/lumo_v1.0.0_windows_amd64.zip",
-  "hash": "05ce82abde6942ca3236b41ee8c39eabfd483c16ff0b1125026e5df2fd53d427",
-  "extract_dir": "lumo_v1.0.0_windows_amd64",
+  "url": "https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_windows_amd64.zip",
+  "hash": "4157cbd2ac60553dbffc1462c795617d7045ca1ad42bb24302804a89655e7b72",
+  "extract_dir": "lumo_v0.4.0_windows_amd64",
   "bin": "lumo.exe",
   "checkver": {
     "github": "https://github.com/intruder0007/Lumo"

@@ -2,8 +2,8 @@
 
 Follow the [wrapper protocol](../../docs/architecture/distribution-protocol.md).
 
-`lumo.json`: `url`/`hash` pointing at the real `v0.3.0`
-`lumo_v0.3.0_windows_amd64.zip` release asset and its real checksum (from
+`lumo.json`: `url`/`hash` pointing at the real `v0.4.0`
+`lumo_v0.4.0_windows_amd64.zip` release asset and its real checksum (from
 the published `SHA256SUMS.txt`), `bin: "lumo.exe"`. Scoop extracts
 the whole zip into the app's versioned directory by default and only
 *shims* the named `bin` — it doesn't discard the rest, so

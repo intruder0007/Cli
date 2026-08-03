@@ -9,6 +9,6 @@ NestedInstallerFiles:
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_windows_amd64.zip
-    InstallerSha256: 05CE82ABDE6942CA3236B41EE8C39EABFD483C16FF0B1125026E5DF2FD53D427
+    InstallerSha256: 4157CBD2AC60553DBFFC1462C795617D7045CA1AD42BB24302804A89655E7B72
 ManifestType: installer
 ManifestVersion: 1.6.0

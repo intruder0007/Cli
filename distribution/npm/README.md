@@ -89,14 +89,12 @@ Full runbook, rollback, and deprecation instructions:
 
 ## Status
 
-**Not yet published as `lumo-cli`.** The interim package
+**Live on npm as `lumo-cli@0.4.0`** (published 2026-08-03 by
+`release.yml` on the v0.4.0 tag, version-synced). The interim package
 `bootstrap-cli-dev@0.3.0` (published under the platform's old name,
-2026-08-02) is live on npm and is the verification-proven interim
-channel — deprecated 2026-08-02 with a pointer to this package. This
-package is its renamed, version-synced successor and will
-be published as `lumo-cli@1.0.0` together with the v1.0.0 GitHub
-release (see ADR-0015 and the migration audit in
-`docs/architecture/npm-identity-migration.md`). Publishing is automatic via
+2026-08-02) remains on npm, deprecated 2026-08-02 with a pointer to
+this package; see ADR-0015 and the migration audit in
+`docs/architecture/npm-identity-migration.md`. Publishing is automatic via
 `.github/workflows/release.yml` (requires the repo's `NPM_TOKEN`
 secret, which is configured). The registry-side check
 (`.github/workflows/npm-verify-published.yml`) verifies the published

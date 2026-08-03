@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const REPO: &str = "intruder0007/Lumo";
-const VERSION: &str = "v0.3.0"; // tracks this wrapper's own package version
+const VERSION: &str = "v0.4.0"; // tracks this wrapper's own package version
 
 fn target_pair() -> (String, String) {
     let os = env::var("CARGO_CFG_TARGET_OS").unwrap();

@@ -12,8 +12,8 @@ $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $packageArgs = @{
   PackageName  = 'lumo-cli'
   UnzipLocation = $toolsDir
-  Url          = 'https://github.com/intruder0007/Lumo/releases/download/v0.3.0/lumo_v0.3.0_windows_amd64.zip'
-  Checksum     = '05CE82ABDE6942CA3236B41EE8C39EABFD483C16FF0B1125026E5DF2FD53D427'
+  Url          = 'https://github.com/intruder0007/Lumo/releases/download/v0.4.0/lumo_v0.4.0_windows_amd64.zip'
+  Checksum     = '4157CBD2AC60553DBFFC1462C795617D7045CA1AD42BB24302804A89655E7B72'
   ChecksumType = 'sha256'
 }
 
