@@ -391,8 +391,8 @@ Severity: **C**ritical (blocks v1) · **H**igh (must fix before v1) ·
 
 | ID | Risk | Sev | Likelihood | Impact | State / mitigation |
 |---|---|---|---|---|---|
-| R-01 | **Distribution wrappers point at non-existent assets.** The 6 non-npm wrappers expect `lumo_v1.0.0_*` at the `v1.0.0` tag; the latest release is v0.3.0 with `cli_v0.3.0_*` assets (verified 2026-08-02: `lumo_v1.0.0_windows_amd64.zip` → 404; `cli_v0.3.0_*` → 200). `distribution-verify.yml` would fail on every wrapper job today. | H | Real (current state) | Anyone running the verify workflow gets a misleading red; a future publisher could ship a broken wrapper | Documented as expected-pre-v1.0.0 (no `push` trigger on the workflow). Resolves at v0.8.0/v1.0.0 when the real release exists. v0.4.0 adds an explicit workflow-status note so the state isn't surprising. |
-| R-02 | **`bootstrap-cli-dev@0.3.0` is the only live npm package, and it's deprecated.** Until `lumo-cli@1.0.0` publishes, the deprecation warning points users at a package that doesn't exist yet. | M | Certain (current state) | Users see "install lumo-cli" but can't — friction + trust hit | Deprecation message is explicit ("until that release this interim package continues to work"). v0.8.0 RC and v1.0.0 publish close the gap. Acceptable for the RC window. |
+| R-01 | **Distribution wrappers point at non-existent assets.** The 6 non-npm wrappers expect `lumo_v1.0.0_*` at the `v1.0.0` tag; the latest release is v0.3.0 with `cli_v0.3.0_*` assets (verified 2026-08-02: `lumo_v1.0.0_windows_amd64.zip` → 404; `cli_v0.3.0_*` → 200). `distribution-verify.yml` would fail on every wrapper job today. | H | Resolved 2026-08-03 | — | **Resolved at v0.4.0.** The v0.4.0 release cut real `lumo_v0.4.0_*` assets; all 6 non-npm wrappers were repinned to them (URLs + real checksums from the release `SHA256SUMS.txt`, winget installer sha256, CI path) and `distribution-verify.yml` runs green on all 7 jobs (verified 2026-08-03). Wrappers are now repinned as part of each release cut; the workflow's expected-state comment enforces this. |
+| R-02 | **`bootstrap-cli-dev@0.3.0` is the only live npm package, and it's deprecated.** Until `lumo-cli@1.0.0` publishes, the deprecation warning points users at a package that doesn't exist yet. | M | Resolved 2026-08-03 | — | **Resolved at v0.4.0.** `lumo-cli@0.4.0` (renamed, version-synced wrapper) was published to npm by `release.yml` on the v0.4.0 tag with provenance, and its tarball smoke test passed on a clean prefix. `bootstrap-cli-dev` remains deprecated and continues to work; users are pointed at the now-live `lumo-cli`. |
 | R-03 | **`go install` is unsupported** (no embedded fallback; needs sibling dirs; no `cli/vX.Y.Z` submodule tags). README documents it as "not yet recommended" but offers no path. | M | Conditional (a Go dev tries `go install`) | Confusion, silent broken binary | v0.4.0 either softens the wording or ships `cli/v0.4.0` submodule tags so `go install@v0.4.0` works. v0.5.0's installer work supersedes for non-Go channels. |
 | R-04 | **Plugin execution is a trust boundary we don't sandbox.** Any installed plugin runs as a full subprocess (filesystem, network, env). | M | Inherent to the design | Malicious plugin = arbitrary code under user's account | Not fixable for v1 without redesign; v0.6.0 security audit must *document* it as user-consent at install time + provide integrity guarantees (manifest validation, checksummed distribution, protocol handshake). Acceptable with `SECURITY.md` statement. |
 | R-05 | **Wire protocol has no multi-version negotiation.** A protocol bump drops every old plugin simultaneously. | M | Low (no bump planned for v1) | An ecosystem break if a bump is needed | Out of v1 scope (deferred, `roadmap.md`). Mitigation: declare `protocolVersion` Stable; no bump before v1.1 unless forced, and then with an ADR + migration guide. |
@@ -404,10 +404,11 @@ Severity: **C**ritical (blocks v1) · **H**igh (must fix before v1) ·
 | R-11 | **No_remote plugin registry (intentional).** Plugin discovery is local-only. Some users will expect `lumo plugins search <x>` against a marketplace. | L | Expected | Mild disappointment; not a correctness risk | Declared non-goal in `roadmap.md`; v0.7.0's local-index `search` softens the UX. Remote registry is a v2 effort. |
 | R-12 | **Single-maintainer bus factor.** The npm account, GitHub secrets, and release-cutting knowledge live with one person. | M | (org reality) | Release pipeline stalls if the maintainer is unavailable | v0.4.0+: document everything (this is largely done); ensure `releasing.md` lets a second maintainer cut a release; consider a second npm owner (`npm owner add`) at v1.0.0. |
 
-**Aggregate judgement:** no **Critical** risks open. The **High** (R-01) is a
-known, documented pre-release state, not a defect. The **Mediums** are either
+**Aggregate judgement:** no **Critical** risks open. The **High** (R-01) is
+resolved — the v0.4.0 release cut real assets and all wrappers were
+repinned to them, with `distribution-verify.yml` green. The **Mediums** are either
 inherent-and-acceptable (R-04, R-05), cheaply closed within the roadmap (R-06,
-R-07), or transitory (R-02, R-03). None blocks proceeding to v0.4.0.
+R-07), partially resolved (R-02, R-03), or transitory. None blocks proceeding past v0.4.0.
 
 ---
 
@@ -417,13 +418,12 @@ R-07), or transitory (R-02, R-03). None blocks proceeding to v0.4.0.
 
 Lumo is **not ready to ship as v1.0.0 today**, for three concrete reasons:
 
-1. **The distribution layer is mid-transition.** The wrappers can't be
-   verified (R-01), the only published npm package is a deprecated interim
-   name (R-02), and the v1.0.0 assets don't exist yet. Calling the current
-   tree v1.0.0 would publish a wrapper the verify workflow can't green and
-   would require the release to *itself* create the assets the wrappers
-   expect — correct sequencing, but it means v1.0.0 is an act of cutting a
-   release, not a state the tree is in.
+1. **The distribution layer was mid-transition.** As of v0.4.0 (2026-08-03)
+   this is now resolved: the release cut real assets, all wrappers are
+   repinned and `distribution-verify.yml` is green (R-01), and the renamed
+   `lumo-cli@0.4.0` npm package is live (R-02). The remaining
+   release-readiness work is the v0.6.0 audit and the v0.8.0 RC — cutting
+   v1.0.0 today would still skip those gates.
 
 2. **The trust documentation isn't fully normative yet.** The semver/stability
    policy exists in draft but hasn't been declared binding from `README.md`;
