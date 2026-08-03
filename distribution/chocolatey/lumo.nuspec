@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>lumo-cli</id>
-    <version>1.0.0</version>
+    <version>0.4.0</version>
     <title>Lumo (lumo)</title>
     <authors>intruder0007</authors>
     <projectUrl>https://github.com/intruder0007/Lumo</projectUrl>

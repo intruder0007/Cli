@@ -17,6 +17,16 @@ for how to add an entry.
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Fixed
+
+## [0.4.0] - 2026-08-02
+
+### Added
+
 - **Registry-driven wizard (ADR-0007)**: the project type, language,
   framework, and capability menus are built from the installed plugins
   (`core/registry` discovery → `prompt.WizardSpec`), replacing the
@@ -114,6 +124,17 @@ for how to add an entry.
   version-sync check, provenance, and a clean-prefix smoke test;
   `npm-verify-published.yml` verifies the published package on clean
   Linux/Windows runners. Release runbook in `docs/guides/releasing.md`.
+- **v0.4.0 foundation — trust & policy docs**: `SECURITY.md`
+  (reporting policy, supported versions, plugin trust boundary,
+  transport integrity, provenance status); a **binding** semver &
+  stability policy in `docs/guides/versioning.md` (Stable = wire
+  protocol / `sdk/go` / CLI surface / wrapper contract / `plugin.json`
+  schema; Experimental = `core/*` internals, theme registry, non-Go SDK
+  notes), referenced from `README.md`; `CODE_OF_CONDUCT.md` confirmed
+  (Contributor Covenant). Plus two planning docs:
+  `docs/ai-context-report.md` (full project state for onboarding) and
+  `docs/architecture/v1-readiness-report.md` (the v0.4→v1.0.0 roadmap,
+  must-do/release checklists, risk report, and readiness verdict).
 
 ### Changed
 
@@ -131,10 +152,16 @@ for how to add an entry.
 - A bare ESC no longer swallows the keystroke after it (e.g.
   ESC-then-Enter), fixing a lost-input wart in the raw-mode menus.
 - All 7 distribution wrappers repointed at the real `v0.3.0` release
-  assets (package versions, download URLs, `extract_dir`, and
-  checksums from the published `SHA256SUMS.txt`), re-verified against
-  them in `distribution-verify.yml` CI. None are published yet; the
-  npm wrapper is now publish-ready (see `docs/guides/releasing.md`).
+  assets (package versions, download URLs, `extract_dir`, and checksums
+  from the published `SHA256SUMS.txt`) at the v0.3.0 cut, re-verified
+  then in `distribution-verify.yml` CI. The wrappers have since been
+  **forward-bumped to the upcoming `lumo_v1.0.0_*` assets** (pending
+  the v1.0.0 release), so `distribution-verify.yml` is now
+  expected-red until v1.0.0 exists — see
+  `distribution/README.md`. None of the 6 non-npm wrappers are
+  published; the npm wrapper publishes as `lumo-cli@1.0.0` with the
+  v1.0.0 release (the interim `bootstrap-cli-dev@0.3.0` is live and
+  deprecated — see Deprecated).
 - Codebase audit (Phase F) fixes: `plugin.Host` now wires plugin
   stderr through a new `Stderr` field, verifies the JSON-RPC response
   id, treats `ok:false` handshakes as errors, bounds the shutdown call
@@ -155,6 +182,67 @@ for how to add an entry.
   finding record.
 - `plugins validate -h` usage text expanded (what the check proves,
   exit-code contract).
+- **gofmt/LF normalization**: `*.go` pinned to `eol=lf` in
+  `.gitattributes` so `gofmt` on Windows no longer flags CRLF as a
+  full-file diff (every line removed+re-added); the working tree's Go
+  source normalized to LF. `gofmt -l` now reports **zero** files
+  across `cli`/`core`/`sdk`/`templates`/`plugins`/`tests` (one genuine
+  formatting fix in `cli/internal/embedded/embedded_test.go` applied
+  in the same pass). CI's `gofmt` check is now reliable.
+- `CHANGELOG.md` structural fix: orphaned `### Deprecated`/`### Fixed`
+  blocks that had been accidentally inserted inside the `[0.2.0]`
+  section were merged back into `[Unreleased]`; the file now follows
+  Keep a Changelog's version-section order
+  (Added/Changed/Deprecated/Fixed) throughout.
+
+### Deprecated
+
+- `bootstrap-cli-dev@0.3.0` — the interim npm package published under
+  the platform's old name (ADR-0015) — is deprecated on the registry
+  (2026-08-02) with a pointer to its successor; `lumo-cli@1.0.0`
+  replaces it with the v1.0.0 release (ADR-0016).
+
+### Fixed
+
+- Distribution metadata corruption repaired: single-letter
+  substitutions from an earlier bulk edit — `intruder0007/aumo` repo
+  URLs in `distribution/npm/package.json`, 13 corrupted words
+  including the `NPM_TOKEN` secret name in `distribution/npm/README.md`
+  (plus a stale `cli_v<version>` asset name), "hhin launcher"
+  descriptions and `MIh` licenses in the cargo/pypi manifests — and
+  stale "`lumo-cli@0.3.0` is published" claims in the distribution
+  docs, all corrected to the canonical "Lumo project scaffolding
+  platform" prose and `github.com/intruder0007/Lumo` URLs. Final
+  corruption sweep over the whole repo: zero matches. Packed-tarball
+  smoke verified (exactly the five intended files; the pre-publish
+  guard fails correctly against the not-yet-existing v1.0.0 assets;
+  postinstall fails loudly and the `--ignore-scripts` shim error is
+  actionable). Full record: `docs/architecture/npm-identity-migration.md`
+  (ADR-0016).
+- `.github/workflows/release.yml` was missing `templates/node-rest-api`
+  from the archive-assembly step — every release cut since the Node
+  template shipped would have produced archives where `lumo new
+  --language node` failed with `TemplateNotFoundError`. No release has
+  been cut since this template was added, so nothing shipped broken.
+- `docs/architecture/plugin-protocol.md` and `CONTRIBUTING.md` referenced
+  a non-existent `sdk.Plugin` interface; corrected to the real
+  `sdk.TemplatePlugin`/`sdk.CapabilityPlugin` + `sdk.Serve(yourPlugin)`
+  shape.
+- `docs/architecture/plugin-protocol.md` claimed a capability plugin's
+  `plugin.apply` request includes which other capabilities were
+  selected — it doesn't; corrected, and tracked as a real gap in
+  `roadmap.md`.
+- Stale "CI-verified" claims in the distribution docs corrected: the 6
+  non-npm wrappers are now stated as "manifest-verified; CI
+  clean-install pending the v1.0.0 release assets," because
+  `distribution-verify.yml`'s clean-install jobs are pinned at the
+  not-yet-cut `lumo_v1.0.0_*` assets and are expected-red until then.
+  `distribution-verify.yml` gained an explicit expected-state note;
+  `distribution/README.md`, `roadmap.md`, the root `README.md`'s `go
+  install` paragraph (now directs users to supported channels and
+  flags the planned `cli/v0.4.0` submodule tag), and `npm-identity-
+  migration.md` all carry the honest, current state. No feature
+  shipped to a date; ground truth is true as of the commit it lands on.
 
 ## [0.3.0] - 2026-08-02
 
@@ -258,47 +346,6 @@ for how to add an entry.
 - `cli` module now depends on `golang.org/x/term` (raw-mode terminal
   input) — isolated to `cli` only; `core`/`sdk/go`/`templates/*`/
   `plugins/*` remain dependency-free.
-
-### Deprecated
-
-- `bootstrap-cli-dev@0.3.0` — the interim npm package published under
-  the platform's old name (ADR-0015) — is deprecated on the registry
-  (2026-08-02) with a pointer to its successor; `lumo-cli@1.0.0`
-  replaces it with the v1.0.0 release (ADR-0016).
-
-### Fixed
-
-- Distribution metadata corruption repaired: single-letter
-  substitutions from an earlier bulk edit — `intruder0007/aumo` repo
-  URLs in `distribution/npm/package.json`, 13 corrupted words
-  including the `NPM_TOKEN` secret name in `distribution/npm/README.md`
-  (plus a stale `cli_v<version>` asset name), "hhin launcher"
-  descriptions and `MIh` licenses in the cargo/pypi manifests — and
-  stale "`lumo-cli@0.3.0` is published" claims in the distribution
-  docs, all corrected to the canonical "Lumo project scaffolding
-  platform" prose and `github.com/intruder0007/Lumo` URLs. Final
-  corruption sweep over the whole repo: zero matches. Packed-tarball
-  smoke verified (exactly the five intended files; the pre-publish
-  guard fails correctly against the not-yet-existing v1.0.0 assets;
-  postinstall fails loudly and the `--ignore-scripts` shim error is
-  actionable). Full record: `docs/architecture/npm-identity-migration.md`
-  (ADR-0016).
-
-### Fixed
-
-- `.github/workflows/release.yml` was missing `templates/node-rest-api`
-  from the archive-assembly step — every release cut since the Node
-  template shipped would have produced archives where `lumo new
-  --language node` failed with `TemplateNotFoundError`. No release has
-  been cut since this template was added, so nothing shipped broken.
-- `docs/architecture/plugin-protocol.md` and `CONTRIBUTING.md` referenced
-  a non-existent `sdk.Plugin` interface; corrected to the real
-  `sdk.TemplatePlugin`/`sdk.CapabilityPlugin` + `sdk.Serve(yourPlugin)`
-  shape.
-- `docs/architecture/plugin-protocol.md` claimed a capability plugin's
-  `plugin.apply` request includes which other capabilities were
-  selected — it doesn't; corrected, and tracked as a real gap in
-  `roadmap.md`.
 
 ## [0.1.1] - 2026-07-31
 

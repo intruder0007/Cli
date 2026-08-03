@@ -1,6 +1,6 @@
 [package]
 name = "lumo-cli"
-version = "1.0.0"
+version = "0.4.0"
 edition = "2021"
 description = "Thin launcher for the Lumo project scaffolding platform (github.com/intruder0007/Lumo) — downloads and runs the real lumo binary for your platform."
 license = "MIT"

@@ -1,6 +1,6 @@
 # Created for github.com/intruder0007/Lumo. See docs/architecture/distribution-protocol.md.
 PackageIdentifier: intruder0007.Lumo
-PackageVersion: 1.0.0
+PackageVersion: 0.4.0
 PackageLocale: en-US
 Publisher: intruder0007
 PackageName: Lumo

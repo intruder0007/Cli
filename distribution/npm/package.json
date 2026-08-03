@@ -1,6 +1,6 @@
 {
   "name": "lumo-cli",
-  "version": "1.0.0",
+  "version": "0.4.0",
   "description": "Launcher for the Lumo project scaffolding platform — installs the real `lumo` binary (github.com/intruder0007/Lumo) for your platform and runs it with full terminal passthrough.",
   "license": "MIT",
   "author": {

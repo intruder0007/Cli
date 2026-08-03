@@ -13,7 +13,7 @@
 class Lumo < Formula
   desc "Cross-language project scaffolding platform: generate new projects via a plugin-based CLI"
   homepage "https://github.com/intruder0007/Lumo"
-  version "1.0.0"
+  version "0.4.0"
   license "MIT"
 
   on_macos do

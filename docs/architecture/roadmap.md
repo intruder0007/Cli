@@ -55,11 +55,14 @@ planned" is clear, per [ADR-0004](adr/0004-v1-scope.md).
   wrapper `lumo-cli@1.0.0` is published with the v1.0.0 release,
   replacing it — see
   [`distribution/npm/README.md`](../../distribution/npm/README.md) and
-  ADR-0015. PyPI, Cargo, Homebrew, Scoop, Winget, and Chocolatey are
-  built and CI-verified against real release assets, but not published
-  — publishing needs either a credential (PyPI/Cargo/Chocolatey) or a
-  PR to a third-party repo (Homebrew/Scoop/Winget), each an
-  explicitly-confirmed separate step. `go install` of the `cli` module
+  ADR-0015. PyPI, Cargo, Homebrew, Scoop, Winget, and Chocolatey have
+  manifests built and manifest-verified but are **not published**; their
+  `distribution-verify.yml` clean-install jobs are pinned at the upcoming
+  `lumo_v1.0.0_*` assets and wait on the v1.0.0 release, so they are
+  expected-red until then — see `distribution/README.md`. Publishing needs
+  either a credential (PyPI/Cargo/Chocolatey) or a PR to a third-party
+  repo (Homebrew/Scoop/Winget), each an explicitly-confirmed separate
+  step. `go install` of the `cli` module
   still doesn't deliver the embedded plugin fallback (the staged plugin
   assets are gitignored and only the build pipeline embeds them), and
   the module needs `cli/vX.Y.Z` submodule tags before `@latest` resolves

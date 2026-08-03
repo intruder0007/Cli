@@ -17,6 +17,15 @@ name: Distribution verify
 # would race the release pipeline and fail on not-yet-existing
 # assets. Run this workflow manually right after a release (or wait
 # for the next PR) to re-verify clean-machine installs.
+#
+# EXPECTED-STATE NOTE (pre-v1.0.0): the non-npm wrappers are pinned at the
+# upcoming `lumo_v1.0.0_*` assets (tag `v1.0.0`), which do not exist yet —
+# the latest release is v0.3.0 with the pre-rename `cli_v0.3.0_*` archives.
+# Until v1.0.0 is cut, **every job except `npm` (which publishes under the
+# interim `bootstrap-cli-dev` name) is expected to fail at the install step
+# with a 404.** This is the documented, intentional pre-release state
+# (see docs/architecture/v1-readiness-report.md risk R-01), not a defect.
+# Green CI resumes automatically once the v1.0.0 GitHub Release exists.
 on:
   pull_request:
     paths: ["distribution/**"]

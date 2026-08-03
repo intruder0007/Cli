@@ -29,6 +29,17 @@ service (`node:http`, zero npm dependencies) — see
 - **Production quality** — what V1 generates actually builds and passes its
   own tests, not a stub.
 
+## Stability & versioning
+
+Lumo follows [semver](https://semver.org) with a declared **Stable vs
+Experimental** surface policy: the plugin wire protocol, `sdk/go`, the CLI
+command & flag surface, the distribution wrapper contract, and the
+`plugin.json` manifest schema are **Stable** (semver-bound); `core/*`
+internals and the theme registry are **Experimental** and may change at any
+release. Breaking changes to a Stable surface require a migration-guide
+entry and, for protocol changes, an ADR. The full, binding policy lives in
+[`docs/guides/versioning.md`](docs/guides/versioning.md) (ADR-0006, ADR-0013).
+
 ## Repository layout
 
 This is a single repository with dedicated long-lived branches per
@@ -81,17 +92,24 @@ passthrough — see [`distribution/npm/`](distribution/npm/) and
 [ADR-0015](docs/architecture/adr/0015-npm-package-identity.md).
 
 `go install github.com/intruder0007/Lumo/cli@latest` is **not yet
-recommended**: the embedded plugin set is staged at build time (the
-staged assets are gitignored), so a `go install`-produced binary has no
-plugin fallback and needs sibling `templates/`/`plugins/` directories —
-and the module needs `cli/vX.Y.Z` submodule tags before `@latest`
-resolves at all. See [`distribution/go/README.md`](distribution/go/README.md).
+recommended**: the embedded plugin set (ADR-0012) is staged into the binary
+at build time (the staged assets are gitignored), so a `go install`-produced
+binary has no plugin fallback and needs sibling `templates/`/`plugins/`
+directories present; and the module needs `cli/vX.Y.Z` submodule tags before
+`@latest` resolves at all. Use the channels above (npm or the install
+scripts) instead. SHIPPER NOTE (planned for v0.4.0): create the `cli/v0.4.0`
+submodule tag so `go install github.com/intruder0007/Lumo/cli@v0.4.0`
+becomes a third supported path — tracked as risk R-03 in
+[`docs/architecture/v1-readiness-report.md`](docs/architecture/v1-readiness-report.md).
+See [`distribution/go/README.md`](distribution/go/README.md).
 
-Other package managers (Homebrew, Scoop, etc.) are built and
-CI-verified but not yet published — see [`distribution/`](distribution/)
-for the design and status of each, and
-[`docs/guides/releasing.md`](docs/guides/releasing.md) for how releases
-(including npm) are cut.
+Other package managers (Homebrew, Scoop, Winget, Chocolatey, PyPI, Cargo)
+have manifests built and manifest-verified, but are **not yet published**;
+their `distribution-verify.yml` clean-install jobs additionally wait on the
+v1.0.0 release assets (see
+[`distribution/README.md`](distribution/README.md) for the per-ecosystem
+status, and [`docs/guides/releasing.md`](docs/guides/releasing.md) for how
+releases — including npm — are cut).
 
 ## Quickstart
 

@@ -3,26 +3,49 @@
 How this project versions things, and what each version number means
 to you as a consumer — user, plugin author, or wrapper maintainer.
 
+> **This policy is binding** as of v0.4.0. It is referenced from
+> [`README.md`](../../README.md) and is the contract Lumo keeps with its
+> users. The Stable/Experimental surface classification (below) and the
+> breaking-change lifecycle (end of document) are normative: a release
+> that violates them is a bug. See
+> [ADR-0006](../architecture/adr/0006-release-process.md) and
+> [ADR-0013](../architecture/adr/0013-api-compatibility.md) for the
+> decisions behind it.
+
 ## Releases: semver (ADR-0006)
 
-Releases are tagged `vX.Y.Z` on `main` (today: `v0.1.0` … `v0.3.0`).
-The version is injected at build time via `-ldflags` from
-`git describe --tags`, never hand-edited. `CHANGELOG.md` documents
-every release with `Added`/`Changed`/`Fixed`/`Removed` sections.
+Releases are tagged `vX.Y.Z` on `main` (today: `v0.1.0` … `v0.3.0`; the
+next planned release is `v0.4.0`). The version is injected at build time
+via `-ldflags` from `git describe --tags`, never hand-edited into source.
+`CHANGELOG.md` documents every release with `Added`/`Changed`/
+`Deprecated`/`Fixed`/`Removed` sections.
 
 ## Surfaces: Stable vs Experimental (ADR-0013)
 
 Changes are judged against the **four Stable surfaces**:
 
-| Surface | Where |
-|---|---|
-| Plugin wire protocol | `docs/architecture/plugin-protocol.md` |
-| `sdk/go` exported API | `sdk/go` |
-| CLI command surface | `docs/cli/usage.md` |
-| Distribution wrapper contract | `docs/architecture/distribution-protocol.md` |
+| Surface | Where | Stability |
+|---|---|---|
+| Plugin wire protocol (`protocolVersion`) | `docs/architecture/plugin-protocol.md` | **Stable** |
+| `sdk/go` exported API | `sdk/go` | **Stable** |
+| CLI command & flag surface | `docs/cli/usage.md` | **Stable** |
+| Distribution wrapper contract | `docs/architecture/distribution-protocol.md` | **Stable** |
+| `plugin.json` manifest schema | `docs/architecture/plugin-protocol.md` | **Stable** |
 
-Everything else — the `core` packages, the theme API — is
-Experimental (internal) and can change at any minor release.
+Everything else is **Experimental** (internal) and may change at any
+release without a migration entry:
+
+| Surface | Where | Stability |
+|---|---|---|
+| `core/*` package internals | `core/` | Experimental |
+| Theme registry (`RegisterTheme`/`GetTheme`) | `cli/internal/prompt` | Experimental (internal/) |
+| Non-Go SDK design notes | `sdk/{node,python,rust,future}/` | Experimental (no impl) |
+
+A surface's stability stage is declared in code where one exists (the
+`sdk/go` package doc declares Stable) and in this table for the rest.
+Promoting an Experimental surface to Stable is an additive minor bump
+plus a note here; demoting a Stable surface to Experimental is a
+breaking change and follows the lifecycle below.
 
 ## What each bump means
 

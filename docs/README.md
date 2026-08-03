@@ -4,6 +4,10 @@ The entry point for the project's documentation. Everything here is
 written for two audiences: **users** of the CLI and **extenders** of the
 platform (plugin/template authors, SDK users, wrapper maintainers).
 
+> Onboarding a fresh AI assistant? Start with
+> [`docs/ai-context-report.md`](ai-context-report.md) — a self-contained
+> snapshot of the whole project written for that purpose.
+
 ## Getting started
 
 - [`README.md`](../README.md) — what Lumo is, principles, installation,
@@ -28,6 +32,9 @@ platform (plugin/template authors, SDK users, wrapper maintainers).
   surfaces, and residual items.
 - [`docs/architecture/roadmap.md`](architecture/roadmap.md) — what's
   shipped, deferred, and planned.
+- [`docs/architecture/v1-readiness-report.md`](architecture/v1-readiness-report.md) —
+  the v0.4→v1.0.0 roadmap, must-do/release checklists, risk report, and
+  readiness verdict.
 - [`docs/architecture/adr/`](architecture/adr/) — the decision records,
   numbered `0001`–`0015`, each statused Accepted.
 

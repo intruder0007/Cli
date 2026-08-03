@@ -10,7 +10,7 @@ import (
 
 func fakeAssets() fstest.MapFS {
 	return fstest.MapFS{
-		"assets/.gitkeep":                              {Data: nil},
+		"assets/.gitkeep": {Data: nil},
 		"assets/templates/fake-template/plugin.json":   {Data: []byte(`{"name":"fake-template"}`)},
 		"assets/templates/fake-template/fake-template": {Data: []byte("binary")},
 		"assets/plugins/builtin/fake-cap/plugin.json":  {Data: []byte(`{"name":"fake-cap"}`)},

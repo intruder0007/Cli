@@ -3,3 +3,11 @@
 # against the Go encoder's "\n"-terminated output, so CRLF conversion
 # would fail them on Windows with core.autocrlf=true.
 *.golden text eol=lf
+
+# Go source is always LF: gofmt on Windows flags CRLF as a full-file
+# diff (every line removed+re-added), which masks real formatting issues
+# and makes CI's gofmt check unreliable. Pinning eol=lf keeps the working
+# treeLF regardless of core.autocrlf, so `gofmt -l` reports only genuine
+# formatting drift — required for the v0.6.0 test-coverage/quality gate.
+*.go text eol=lf
+
