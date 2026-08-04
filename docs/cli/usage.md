@@ -21,25 +21,32 @@ menu. When stdin/stdout aren't both real terminals (piped input, CI,
 scripts), it falls back automatically to plain numbered-list prompts —
 see ADR-0007.
 
-Up to six prompts, in order (every menu is built from the plugins
+Up to seven prompts, in order (every menu is built from the plugins
 actually installed — the wizard only offers what's discoverable, and
 each step's options are filtered by the previous answers):
 
 0. **Project name** — typed.
-1. **Theme** — `default` (color + icons) or `minimal` (plain text,
+1. **Location** — typed, **always asked** (never silently defaulted —
+   in particular, never the current working directory, which on
+   Windows is the double-clicked `.exe`'s own folder). Pre-filled with
+   the last-used location, editable every run, and **persisted**
+   (`lumo config get projects-dir`) when you move past this step. First
+   run defaults to `~/Projects` (or your home directory if that can't
+   be determined).
+2. **Theme** — `default` (color + icons) or `minimal` (plain text,
    `NO_COLOR`/screen-reader friendly). Whatever you pick here is
    **persisted** (`lumo config get theme`) and offered as the
    default next time.
-2. **Project type** — the distinct project types of the installed
+3. **Project type** — the distinct project types of the installed
    template plugins (e.g. `Backend Service`), in discovery order.
-3. **Language** — the languages available for the project type you
+4. **Language** — the languages available for the project type you
    picked (e.g. `Go`, `Node.js`; see
    [ADR-0009](../architecture/adr/0009-second-template-cross-language.md)).
-4. **Framework** — the templates available for that project type +
+5. **Framework** — the templates available for that project type +
    language pair, by their display names (e.g. `Go REST API Service`).
    The list is filtered by your choices, so a combination with no
    matching template can't be picked in the first place.
-5. **Capabilities** (multi-select, checkboxes) — the installed
+6. **Capabilities** (multi-select, checkboxes) — the installed
    capability plugins (e.g. `git-init`, `readme`); the step is skipped
    entirely when none are installed. `github-actions-ci` writes a Go
    workflow (`go build` + `go test`) and refuses non-Go projects with a
@@ -81,13 +88,21 @@ The positional argument is a project name **or a target path**; the
 project name (used by templates to name the module/service) is always
 the path's final component:
 
-- `lumo new my-app` — creates `./my-app` (relative to the CWD).
+- `lumo new my-app` — creates `./my-app` (relative to the CWD). This is
+  the one non-interactive behavior the wizard's location step
+  deliberately doesn't change: a script's working directory is part of
+  its contract, so non-interactive runs keep resolving a bare name
+  against the CWD.
 - `lumo new ./work/app` — creates the app inside an explicit relative
   directory (parents are created as needed).
 - `lumo new /abs/path/app` (Unix) or `lumo new C:\code\app` (Windows)
   — creates at an explicit absolute location.
 - `lumo new ~/code/app` — `~` expands to the user's home directory on
   all platforms (`~/` and `~\` are both accepted).
+- `lumo new my-app --dir ~/Projects` — an explicit, unambiguous
+  alternative to a path-like positional: combines `--dir` and a bare
+  project name into the target (`--dir` can't be combined with a
+  path-like name — pick one form).
 
 The project-name rules (start with a letter; letters, digits, `-`, `_`
 only) apply to the final path component, so `lumo new ./x/2bad` is
@@ -129,6 +144,10 @@ argument: it may be a bare name or a target path (see
   not. The pre-release check for plugin/template authors.
 - `lumo config get theme` / `lumo config set theme <name>` —
   read or explicitly set the persisted theme, without running the
+  wizard.
+- `lumo config get projects-dir` / `lumo config set projects-dir <path>`
+  — read or explicitly set the persisted default project location
+  (what the wizard's location step pre-fills), without running the
   wizard.
 - `lumo doctor` — runs local health checks (plugin directory
   resolution, manifest validity, whether this binary has embedded

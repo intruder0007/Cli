@@ -178,6 +178,7 @@ func TestWizardLineFallbackGeneratesProject(t *testing.T) {
 
 	answers := strings.Join([]string{
 		projectName,       // project name
+		genParent,         // location (always asked — never the CWD/exe dir)
 		"default",         // theme
 		"backend-service", // project type
 		"go",              // language

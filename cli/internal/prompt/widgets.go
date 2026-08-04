@@ -362,14 +362,17 @@ func multiSelectMenu(o *Output, r io.Reader, t Theme, label string, opts []optio
 // normal character (vim keys never apply to text input — §3.2 rule 3).
 // Returns the line, ErrBack, or ErrCancelled. An inline advisory note
 // appears while the text contains characters a project name can't.
-func TextInput(w io.Writer, r io.Reader, t Theme, label, placeholder string) (string, error) {
-	return textInput(NewOutput(w), r, t, label, placeholder)
+// initial seeds the buffer with real, editable text (e.g. a remembered
+// default) — unlike placeholder, which is only a dimmed hint shown
+// while the buffer is empty and is never part of the returned value.
+func TextInput(w io.Writer, r io.Reader, t Theme, label, placeholder, initial string) (string, error) {
+	return textInput(NewOutput(w), r, t, label, placeholder, initial)
 }
 
-func textInput(o *Output, r io.Reader, t Theme, label, placeholder string) (string, error) {
+func textInput(o *Output, r io.Reader, t Theme, label, placeholder, initial string) (string, error) {
 	o.ClearScreen()
 
-	var buf []byte
+	buf := []byte(initial)
 	region := NewRegion(o)
 	draw := func() {
 		lines := []string{optionTitle(t, label), ""}

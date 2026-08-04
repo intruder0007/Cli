@@ -287,12 +287,15 @@ func cmdNew(args []string) {
 		fmt.Fprintln(os.Stderr, `usage: lumo new [project-name-or-path] [flags]
 
 Generates a new project. With no flags and no --answers, runs the
-interactive wizard. Flags below make it non-interactive.
+interactive wizard (which always asks where to generate — see -dir
+below for the non-interactive equivalent). Flags below make it
+non-interactive.
 
 The positional argument may be a bare project name (generated in the
-current directory) or a target path — relative (./my-app, ../x/app),
-absolute (/home/me/app, C:\code\app), or ~-prefixed (~/code/app). The
-project name is derived from the path's final component.`)
+current directory, unless -dir is set) or a target path — relative
+(./my-app, ../x/app), absolute (/home/me/app, C:\code\app), or
+~-prefixed (~/code/app). The project name is derived from the path's
+final component. -dir and a path-like project name can't be combined.`)
 		fs.PrintDefaults()
 	}
 	theme := fs.String("theme", "", "CLI theme: default or minimal")
@@ -301,6 +304,7 @@ project name is derived from the path's final component.`)
 	framework := fs.String("framework", "", "framework, e.g. rest-api")
 	caps := fs.String("capabilities", "", "comma-separated capability ids")
 	answersFile := fs.String("answers", "", "path to an answers file")
+	dirFlag := fs.String("dir", "", "target directory, combined with the project name (e.g. -dir ~/Projects my-app); can't be combined with a path-like project name")
 	noColor := fs.Bool("no-color", false, "disable color output")
 	verbose := fs.Bool("verbose", false, "print diagnostic logging (plugin spawn/timing) to stderr")
 	fs.BoolVar(verbose, "v", false, "shorthand for -verbose")
@@ -313,7 +317,7 @@ project name is derived from the path's final component.`)
 	}
 
 	noColorEnv := os.Getenv("NO_COLOR") != ""
-	interactive := *answersFile == "" && positional == "" && *theme == "" && *projectType == "" && *language == "" && *framework == "" && *caps == ""
+	interactive := *answersFile == "" && positional == "" && *theme == "" && *projectType == "" && *language == "" && *framework == "" && *caps == "" && *dirFlag == ""
 
 	var a config.Answers
 	var err error
@@ -325,6 +329,11 @@ project name is derived from the path's final component.`)
 			fmt.Fprintln(os.Stderr, "error: --answers and a positional project name can't be combined (the project name belongs in the answers file)")
 			exit(2)
 		}
+		if *dirFlag != "" {
+			fs.Usage()
+			fmt.Fprintln(os.Stderr, "error: --answers and --dir can't be combined (the location belongs in the answers file's projectName)")
+			exit(2)
+		}
 		a, err = prompt.ParseAnswersFile(*answersFile)
 	case !interactive:
 		if *theme == "" {
@@ -332,6 +341,19 @@ project name is derived from the path's final component.`)
 			// the wizard: LUMO_THEME > persisted config > default.
 			cfg, _ := prompt.LoadConfig()
 			*theme = prompt.ResolveThemeName("", cfg.Theme)
+		}
+		if *dirFlag != "" {
+			if positional == "" {
+				fs.Usage()
+				fmt.Fprintln(os.Stderr, "error: --dir requires a project name")
+				exit(2)
+			}
+			if prompt.IsPathLike(positional) {
+				fs.Usage()
+				fmt.Fprintln(os.Stderr, "error: --dir and a path-like project name can't be combined — pass a bare name with --dir, or a path with neither")
+				exit(2)
+			}
+			positional = filepath.Join(*dirFlag, positional)
 		}
 		a = config.Answers{
 			ProjectName:  positional,
@@ -394,6 +416,16 @@ project name is derived from the path's final component.`)
 			prompt.ErrorScreen(os.Stdout, t, err)
 			exit(1)
 		}
+	}
+
+	// a.ProjectName is now just the bare name (resolveTargetPath already
+	// split any path off into targetDir above) — the strict character-set
+	// check deferred by ValidateShape/ParseAnswersFile runs here, once,
+	// for every path into cmdNew (wizard, --answers, and plain flags
+	// alike), matching ValidateShape's own doc comment.
+	if err := a.Validate(); err != nil {
+		prompt.ErrorScreen(os.Stdout, t, err)
+		exit(1)
 	}
 
 	// Refuse to generate into a directory that already has content —
@@ -655,18 +687,33 @@ func cmdDoctor(args []string) {
 
 func configUsage() {
 	fmt.Fprintln(os.Stderr, `usage: lumo config get theme
-       lumo config set theme <default|minimal>`)
+       lumo config set theme <default|minimal>
+       lumo config get projects-dir
+       lumo config set projects-dir <path>`)
 }
 
 func cmdConfig(args []string) {
-	if len(args) < 2 || (args[0] != "get" && args[0] != "set") || args[1] != "theme" {
+	if len(args) < 2 || (args[0] != "get" && args[0] != "set") {
 		configUsage()
 		exit(1)
 	}
-	if args[0] == "get" {
-		cmdConfigGetTheme()
-	} else {
-		cmdConfigSetTheme(args[2:])
+	key, action := args[1], args[0]
+	switch key {
+	case "theme":
+		if action == "get" {
+			cmdConfigGetTheme()
+		} else {
+			cmdConfigSetTheme(args[2:])
+		}
+	case "projects-dir":
+		if action == "get" {
+			cmdConfigGetProjectsDir()
+		} else {
+			cmdConfigSetProjectsDir(args[2:])
+		}
+	default:
+		configUsage()
+		exit(1)
 	}
 }
 
@@ -695,6 +742,32 @@ func cmdConfigSetTheme(rest []string) {
 		exit(1)
 	}
 	cfg.Theme = name
+	if err := prompt.SaveConfig(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		exit(1)
+	}
+}
+
+func cmdConfigGetProjectsDir() {
+	cfg, err := prompt.LoadConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		exit(1)
+	}
+	fmt.Println(cfg.DefaultProjectsDir)
+}
+
+func cmdConfigSetProjectsDir(rest []string) {
+	if len(rest) < 1 || rest[0] == "" {
+		configUsage()
+		exit(1)
+	}
+	cfg, err := prompt.LoadConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		exit(1)
+	}
+	cfg.DefaultProjectsDir = rest[0]
 	if err := prompt.SaveConfig(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		exit(1)
