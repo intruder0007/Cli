@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "python-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "Python REST API Service",
+  "projectType": "backend-service",
+  "language": "python",
+  "framework": "http-api",
+  "entrypoint": "./python-rest-api"
+}

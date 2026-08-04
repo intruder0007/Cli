@@ -36,6 +36,15 @@ jobs:
       # see docs/templates/authoring.md and the D1 PR description for
       # why C++ intentionally has no CMake dependency here).
 
+      # tests/integration's TestEndToEndGeneratePythonRestAPI needs a
+      # real python3 on PATH, same reasoning as setup-node above. This
+      # template was written without a working local Python interpreter
+      # (see templates/python-rest-api/main.go) — this is genuinely the
+      # first place it gets run.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       # tests/integration exercises the git-init capability plugin,
       # which runs `git commit`; a fresh runner has no git identity
       # configured (developer machines usually already have one, so
