@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestAnswersValidateShapeSkipsNamePattern(t *testing.T) {
+	base := Answers{
+		ProjectName: "a/b/app", Theme: "default",
+		ProjectType: "backend-service", Language: "go", Framework: "rest-api",
+	}
+	if err := base.ValidateShape(); err != nil {
+		t.Errorf("ValidateShape() = %v, want nil for path-like name", err)
+	}
+	if err := base.Validate(); err == nil {
+		t.Error("Validate() = nil, want name-pattern error for path-like name")
+	}
+	empty := Answers{ProjectName: "", Theme: "default", ProjectType: "backend-service", Language: "go", Framework: "rest-api"}
+	if err := empty.ValidateShape(); err == nil || !strings.Contains(err.Error(), "project name is required") {
+		t.Errorf("ValidateShape() = %v, want missing-name error", err)
+	}
+}
+
 func TestAnswersValidate(t *testing.T) {
 	base := Answers{
 		ProjectName: "demo", Theme: "default",

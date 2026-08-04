@@ -20,6 +20,23 @@ type Summary struct {
 	NextSteps           []string
 	Template            string
 	CapabilitiesApplied []string
+
+	// Answers and TargetDir echo the run's inputs back to the success
+	// screen (which renders the project-information dashboard from
+	// them). Additive: the legacy flat fields above remain authoritative
+	// for file counts and capability lists.
+	Answers   config.Answers
+	TargetDir string
+	// FileGroups groups written files by the plugin that produced them
+	// (template first, then one per applied capability), so the success
+	// screen can render a grouped file tree (design-spec §6.1 rule 1).
+	FileGroups []FileGroup
+}
+
+// FileGroup is one plugin's contribution to FilesWritten.
+type FileGroup struct {
+	Label string // "template" or "capability <id>"
+	Files []string
 }
 
 // Resolver finds plugins by wizard answer / capability id. Satisfied by
@@ -116,6 +133,8 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	}
 
 	summary.Template = tmpl.Manifest.Name
+	summary.Answers = a
+	summary.TargetDir = targetDir
 
 	e.notify("generating template "+tmpl.Manifest.Name, false)
 	genResp, err := e.Host.Generate(tmpl.EntrypointPath, tmpl.Manifest.Name, sdk.ProtocolVersion, sdk.GenerateRequest{
@@ -129,6 +148,7 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 	e.notify("generating template "+tmpl.Manifest.Name, true)
 	summary.FilesWritten = append(summary.FilesWritten, genResp.FilesWritten...)
 	summary.NextSteps = append(summary.NextSteps, genResp.NextSteps...)
+	summary.FileGroups = append(summary.FileGroups, FileGroup{Label: "template", Files: genResp.FilesWritten})
 
 	for _, c := range ordered {
 		e.notify("applying capability "+c.Manifest.CapabilityID, false)
@@ -144,6 +164,7 @@ func (e *Engine) Run(targetDir string, a config.Answers) (Summary, error) {
 		summary.FilesWritten = append(summary.FilesWritten, applyResp.FilesWritten...)
 		summary.NextSteps = append(summary.NextSteps, applyResp.NextSteps...)
 		summary.CapabilitiesApplied = append(summary.CapabilitiesApplied, c.Manifest.CapabilityID)
+		summary.FileGroups = append(summary.FileGroups, FileGroup{Label: "capability " + c.Manifest.CapabilityID, Files: applyResp.FilesWritten})
 	}
 
 	log.Logf("run complete: %d files written, %d capabilities applied", len(summary.FilesWritten), len(summary.CapabilitiesApplied))

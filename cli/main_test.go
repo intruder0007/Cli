@@ -63,3 +63,91 @@ func TestEmbeddedCacheDirIsVersionScoped(t *testing.T) {
 		t.Fatalf("expected cache dir %q to be under a 'lumo' directory", dir)
 	}
 }
+
+func TestResolveTargetPathBareName(t *testing.T) {
+	dir, name, err := resolveTargetPath("myapp")
+	if err != nil {
+		t.Fatalf("resolveTargetPath(bare): %v", err)
+	}
+	if name != "myapp" {
+		t.Fatalf("expected name myapp, got %q", name)
+	}
+	if want := filepath.Join(mustAbs(t, "."), "myapp"); dir != want {
+		t.Fatalf("expected dir %q, got %q", want, dir)
+	}
+}
+
+func TestResolveTargetPathRelative(t *testing.T) {
+	dir, name, err := resolveTargetPath("./a/b/app")
+	if err != nil {
+		t.Fatalf("resolveTargetPath(relative): %v", err)
+	}
+	if name != "app" {
+		t.Fatalf("expected name app, got %q", name)
+	}
+	if want := filepath.Join(mustAbs(t, "."), "a", "b", "app"); dir != want {
+		t.Fatalf("expected dir %q, got %q", want, dir)
+	}
+}
+
+func TestResolveTargetPathAbsolute(t *testing.T) {
+	abs := filepath.Join(mustAbs(t, "."), "deep", "app")
+	dir, name, err := resolveTargetPath(abs)
+	if err != nil {
+		t.Fatalf("resolveTargetPath(absolute): %v", err)
+	}
+	if name != "app" {
+		t.Fatalf("expected name app, got %q", name)
+	}
+	if dir != abs {
+		t.Fatalf("expected dir %q, got %q", abs, dir)
+	}
+}
+
+func TestResolveTargetPathHomeExpansion(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	dir, name, err := resolveTargetPath("~/code/app")
+	if err != nil {
+		t.Fatalf("resolveTargetPath(~): %v", err)
+	}
+	if name != "app" {
+		t.Fatalf("expected name app, got %q", name)
+	}
+	if want := filepath.Join(home, "code", "app"); dir != want {
+		t.Fatalf("expected dir %q, got %q", want, dir)
+	}
+
+	if _, _, err := resolveTargetPath("~"); err == nil {
+		t.Fatal("expected ~ alone to be rejected (not a project directory)")
+	}
+}
+
+func TestResolveTargetPathRejectsNonDirectories(t *testing.T) {
+	for _, p := range []string{"", ".", "./", "..", "/", "~/"} {
+		if _, _, err := resolveTargetPath(p); err == nil {
+			t.Fatalf("expected %q to be rejected", p)
+		}
+	}
+}
+
+func TestResolveTargetPathKeepsBadNameForValidation(t *testing.T) {
+	_, name, err := resolveTargetPath("./x/2bad")
+	if err != nil {
+		t.Fatalf("resolveTargetPath(bad name): %v", err)
+	}
+	if name != "2bad" {
+		t.Fatalf("expected name 2bad, got %q", name)
+	}
+}
+
+func mustAbs(t *testing.T, p string) string {
+	t.Helper()
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return abs
+}

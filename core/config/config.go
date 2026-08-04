@@ -22,6 +22,34 @@ var validThemes = map[string]bool{"default": true, "minimal": true}
 
 var projectNamePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
+// ValidateShape checks the shape of Answers without enforcing the
+// project-name character set: it requires every required field to be
+// non-empty and the theme to be recognized, but deliberately leaves the
+// name pattern to the caller. This lets the CLI accept a target *path*
+// in the same field (e.g. projectName: ./a/b/app in an answers file) and
+// resolve it to a name + directory before the pattern check runs.
+func (a Answers) ValidateShape() error {
+	if a.ProjectName == "" {
+		return fmt.Errorf("project name is required")
+	}
+	if a.Theme == "" {
+		a.Theme = "default"
+	}
+	if !validThemes[a.Theme] {
+		return fmt.Errorf("unknown theme %q (want \"default\" or \"minimal\")", a.Theme)
+	}
+	if a.ProjectType == "" {
+		return fmt.Errorf("project type is required")
+	}
+	if a.Language == "" {
+		return fmt.Errorf("language is required")
+	}
+	if a.Framework == "" {
+		return fmt.Errorf("framework is required")
+	}
+	return nil
+}
+
 // Validate checks the shape of Answers (non-empty required fields, a
 // filesystem-safe project name, a recognized theme). It does not check
 // whether a template/capability actually exists for these answers — that

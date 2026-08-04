@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/intruder0007/Lumo/cli/internal/embedded"
 	"github.com/intruder0007/Lumo/cli/internal/prompt"
@@ -29,6 +30,13 @@ import (
 var version = "dev"
 
 func main() {
+	// Set the window title to Lumo for the whole session (design-system
+	// §6); interactive flows refine it as they progress, and exit restores
+	// the caller's title. TTY-gated inside SetTitle, so piped output is
+	// untouched and goldens stay stable.
+	prompt.SetTitle("Lumo")
+	defer prompt.RestoreTitle() // runs on normal return; exit() covers os.Exit paths
+
 	if len(os.Args) < 2 {
 		// No command given (e.g. double-clicking lumo.exe, or typing
 		// `lumo` at a shell): start the interactive wizard — the
@@ -55,8 +63,16 @@ func main() {
 		fmt.Println(prompt.HelpText)
 	default:
 		fmt.Fprintln(os.Stderr, prompt.HelpText)
-		os.Exit(1)
+		exit(1)
 	}
+}
+
+// exit terminates with the given code after restoring the terminal title
+// the session set (os.Exit skips deferred functions, so the restore must
+// be explicit). Calls the platform's title restore, then os.Exit.
+func exit(code int) {
+	prompt.RestoreTitle()
+	os.Exit(code)
 }
 
 // pluginDirs returns the local directories the registry scans: an
@@ -221,6 +237,13 @@ func wizardSpecFromDiscovery(plugins []registry.Plugin) prompt.WizardSpec {
 	return spec
 }
 
+// resolveTargetPath splits a `lumo new` positional into the absolute
+// target directory and the project name — the shared rule is
+// prompt.ResolveTargetPath, used by the wizard's confirm screen too.
+func resolveTargetPath(positional string) (targetDir, projectName string, err error) {
+	return prompt.ResolveTargetPath(positional)
+}
+
 // extractProjectName pulls the positional project-name argument out of
 // args regardless of where it appears relative to flags (docs/cli/usage.md
 // documents "lumo new my-project --theme ..."), since the stdlib
@@ -253,7 +276,7 @@ func extractProjectName(args []string, boolFlags map[string]bool) (string, []str
 }
 
 func cmdNew(args []string) {
-	projectName, rest := extractProjectName(args, map[string]bool{
+	positional, rest := extractProjectName(args, map[string]bool{
 		"-no-color": true, "--no-color": true,
 		"-verbose": true, "--verbose": true,
 		"-v": true, "--v": true,
@@ -261,10 +284,15 @@ func cmdNew(args []string) {
 
 	fs := flag.NewFlagSet("new", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: lumo new [project-name] [flags]
+		fmt.Fprintln(os.Stderr, `usage: lumo new [project-name-or-path] [flags]
 
 Generates a new project. With no flags and no --answers, runs the
-interactive wizard. Flags below make it non-interactive.`)
+interactive wizard. Flags below make it non-interactive.
+
+The positional argument may be a bare project name (generated in the
+current directory) or a target path — relative (./my-app, ../x/app),
+absolute (/home/me/app, C:\code\app), or ~-prefixed (~/code/app). The
+project name is derived from the path's final component.`)
 		fs.PrintDefaults()
 	}
 	theme := fs.String("theme", "", "CLI theme: default or minimal")
@@ -281,29 +309,32 @@ interactive wizard. Flags below make it non-interactive.`)
 	if fs.NArg() > 0 {
 		fmt.Fprintf(os.Stderr, "error: unexpected argument(s): %s\n", strings.Join(fs.Args(), " "))
 		fs.Usage()
-		os.Exit(2)
+		exit(2)
 	}
 
 	noColorEnv := os.Getenv("NO_COLOR") != ""
-	interactive := *answersFile == "" && projectName == "" && *theme == "" && *projectType == "" && *language == "" && *framework == "" && *caps == ""
+	interactive := *answersFile == "" && positional == "" && *theme == "" && *projectType == "" && *language == "" && *framework == "" && *caps == ""
 
 	var a config.Answers
 	var err error
 
 	switch {
 	case *answersFile != "":
-		if projectName != "" {
+		if positional != "" {
 			fs.Usage()
 			fmt.Fprintln(os.Stderr, "error: --answers and a positional project name can't be combined (the project name belongs in the answers file)")
-			os.Exit(2)
+			exit(2)
 		}
 		a, err = prompt.ParseAnswersFile(*answersFile)
 	case !interactive:
 		if *theme == "" {
-			*theme = "default"
+			// Non-interactive runs follow the same theme precedence as
+			// the wizard: LUMO_THEME > persisted config > default.
+			cfg, _ := prompt.LoadConfig()
+			*theme = prompt.ResolveThemeName("", cfg.Theme)
 		}
 		a = config.Answers{
-			ProjectName:  projectName,
+			ProjectName:  positional,
 			Theme:        *theme,
 			ProjectType:  *projectType,
 			Language:     *language,
@@ -311,13 +342,11 @@ interactive wizard. Flags below make it non-interactive.`)
 			Capabilities: splitCSV(*caps),
 		}
 	default:
-		// Banner uses the persisted theme if one exists (a wizard run
-		// always saves its own choice — see wizard.go), else "default".
-		// The wizard's own theme question can still change it.
-		bannerTheme := "default"
-		if cfg, cfgErr := prompt.LoadConfig(); cfgErr == nil && cfg.Theme != "" {
-			bannerTheme = cfg.Theme
-		}
+		// Banner uses the resolved non-interactive theme name
+		// (LUMO_THEME > persisted > default); the wizard's own theme
+		// question can still change it.
+		cfg, _ := prompt.LoadConfig()
+		bannerTheme := prompt.ResolveThemeName("", cfg.Theme)
 		prompt.Banner(os.Stdout, prompt.GetTheme(bannerTheme, *noColor || noColorEnv))
 
 		// The wizard's menus are built from what's actually installed
@@ -328,9 +357,9 @@ interactive wizard. Flags below make it non-interactive.`)
 		discovered, discoverErr := reg.Discover()
 		if discoverErr != nil {
 			prompt.ErrorScreen(os.Stdout, prompt.GetTheme(bannerTheme, *noColor || noColorEnv), discoverErr)
-			os.Exit(1)
+			exit(1)
 		}
-		a, err = prompt.RunWizard(os.Stdout, wizardSpecFromDiscovery(discovered))
+		a, err = prompt.RunWizard(os.Stdout, wizardSpecFromDiscovery(discovered), version)
 	}
 
 	t := prompt.GetTheme(a.Theme, *noColor || noColorEnv)
@@ -338,16 +367,33 @@ interactive wizard. Flags below make it non-interactive.`)
 	if err != nil {
 		if err == prompt.ErrCancelled {
 			fmt.Fprintln(os.Stdout, t.Info("cancelled"))
-			os.Exit(130)
+			exit(130)
 		}
 		prompt.ErrorScreen(os.Stdout, t, err)
-		os.Exit(1)
+		exit(1)
 	}
 
-	targetDir, err := filepath.Abs(a.ProjectName)
-	if err != nil {
-		prompt.ErrorScreen(os.Stdout, t, err)
-		os.Exit(1)
+	// The positional argument may be a bare project name or a target
+	// path (relative, absolute, or ~-prefixed). resolveTargetPath
+	// separates the two concerns: the project name is the final path
+	// component (what templates name the module/service after), and the
+	// target dir is the full resolved location.
+	targetDir := ""
+	if a.ProjectName != "" {
+		dir, name, err := resolveTargetPath(a.ProjectName)
+		if err != nil {
+			prompt.ErrorScreen(os.Stdout, t, err)
+			exit(1)
+		}
+		a.ProjectName = name
+		targetDir = dir
+	}
+	if targetDir == "" {
+		targetDir, err = filepath.Abs(a.ProjectName)
+		if err != nil {
+			prompt.ErrorScreen(os.Stdout, t, err)
+			exit(1)
+		}
 	}
 
 	// Refuse to generate into a directory that already has content —
@@ -356,20 +402,20 @@ interactive wizard. Flags below make it non-interactive.`)
 	if info, statErr := os.Stat(targetDir); statErr == nil {
 		if !info.IsDir() {
 			prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("target %s is a file, not a directory", targetDir))
-			os.Exit(1)
+			exit(1)
 		}
 		entries, readErr := os.ReadDir(targetDir)
 		if readErr != nil {
 			prompt.ErrorScreen(os.Stdout, t, readErr)
-			os.Exit(1)
+			exit(1)
 		}
 		if len(entries) > 0 {
 			prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("target directory %s already exists and is not empty (generating would overwrite existing files)", targetDir))
-			os.Exit(1)
+			exit(1)
 		}
 	} else if !os.IsNotExist(statErr) {
 		prompt.ErrorScreen(os.Stdout, t, statErr)
-		os.Exit(1)
+		exit(1)
 	}
 
 	var logger diag.Logger = diag.NoopLogger{}
@@ -389,50 +435,52 @@ interactive wizard. Flags below make it non-interactive.`)
 	eng := engine.New(reg, host)
 	eng.Logger = logger
 
-	// A one-line plan of what will be created, then one line (or, on a
-	// terminal, a live spinner) per phase as the run progresses — see
-	// spinner.go. The same output works in CI and under pipes: it
-	// degrades to plain arrow lines with no escape codes.
+	// A one-line plan of what will be created, then the persistent
+	// step-based progress bar (progress.go): one row per phase as it
+	// begins, filling as the engine reports each phase's completion.
+	// The same output works in CI and under pipes: it degrades to
+	// plain arrow lines with no escape codes.
 	plan := fmt.Sprintf("Creating %s — %s · %s · %s", a.ProjectName, a.ProjectType, a.Language, a.Framework)
 	if len(a.Capabilities) > 0 {
 		plan += " · " + strings.Join(a.Capabilities, ", ")
 	}
-	arrow := "→"
-	if !t.UseIcons {
-		arrow = "-"
-	}
-	fmt.Fprintln(os.Stdout, "  "+t.Accent(arrow)+" "+plan)
+	prompt.SetTitle("Lumo — generating " + a.ProjectName)
+	fmt.Fprintln(os.Stdout, "  "+prompt.SummaryLine(t, plan))
 
-	var sp *prompt.Spinner
+	var pg *prompt.ProgressGroup
 	eng.Progress = func(phase string, done bool) {
 		if done {
-			if sp != nil {
-				sp.Finish(true)
+			if pg != nil {
+				pg.Done(phase)
 			}
 			return
 		}
-		if sp == nil {
-			sp = prompt.NewSpinner(os.Stdout, t)
+		if pg == nil {
+			pg = prompt.NewProgressGroup(os.Stdout, t, a.Capabilities)
 		}
-		sp.Start(phase)
+		pg.Start(phase)
 	}
 
 	summary, err := eng.Run(targetDir, a)
-	if sp != nil {
-		sp.Finish(err == nil)
-	}
 	if err != nil {
+		if pg != nil {
+			pg.Fail()
+		}
 		prompt.ErrorScreen(os.Stdout, t, err)
-		os.Exit(1)
+		exit(1)
+	}
+	var elapsed time.Duration
+	if pg != nil {
+		elapsed = pg.Finish()
 	}
 
-	prompt.SuccessScreen(os.Stdout, t, a.ProjectName, summary)
+	prompt.SuccessScreen(os.Stdout, t, a.ProjectName, summary, elapsed)
 }
 
 func cmdPlugins(args []string) {
 	if len(args) == 0 {
 		pluginsUsage()
-		os.Exit(1)
+		exit(1)
 	}
 	switch args[0] {
 	case "list":
@@ -441,7 +489,7 @@ func cmdPlugins(args []string) {
 		cmdPluginsValidate(args[1:])
 	default:
 		pluginsUsage()
-		os.Exit(1)
+		exit(1)
 	}
 }
 
@@ -459,7 +507,7 @@ func cmdPluginsList(args []string) {
 	found, issues, err := reg.DiscoverWithIssues()
 	if err != nil {
 		prompt.ErrorScreen(os.Stdout, prompt.GetTheme("default", os.Getenv("NO_COLOR") != ""), err)
-		os.Exit(1)
+		exit(1)
 	}
 	for _, issue := range issues {
 		fmt.Fprintf(os.Stderr, "skipped %s: %v\n", issue.Path, issue.Err)
@@ -493,7 +541,7 @@ on-disk manifest (catching a stale or swapped binary). Exit 0 = valid.`)
 
 	if fs.NArg() != 1 {
 		fs.Usage()
-		os.Exit(1)
+		exit(1)
 	}
 
 	t := prompt.GetTheme("default", os.Getenv("NO_COLOR") != "")
@@ -502,17 +550,17 @@ on-disk manifest (catching a stale or swapped binary). Exit 0 = valid.`)
 	p, ok, err := registry.LoadPluginDir(dir)
 	if err != nil {
 		prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("invalid plugin in %s: %w", dir, err))
-		os.Exit(1)
+		exit(1)
 	}
 	if !ok {
 		fmt.Fprintf(os.Stderr, "no plugin.json found in %s\n", dir)
-		os.Exit(1)
+		exit(1)
 	}
 
 	host := plugin.NewHost()
 	if err := host.Validate(p.EntrypointPath, p.Manifest.Name, sdk.ProtocolVersion); err != nil {
 		prompt.ErrorScreen(os.Stdout, t, fmt.Errorf("plugin %q failed validation: %w", p.Manifest.Name, err))
-		os.Exit(1)
+		exit(1)
 	}
 
 	fmt.Println(t.Success(fmt.Sprintf("plugin %s (%s) v%s: valid", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version)))
@@ -578,7 +626,7 @@ func cmdDoctor(args []string) {
 	found, issues, err := reg.DiscoverWithIssues()
 	if err != nil {
 		fmt.Println(t.Failure("discovery failed: " + err.Error()))
-		os.Exit(1)
+		exit(1)
 	}
 
 	fmt.Println()
@@ -602,7 +650,7 @@ func cmdDoctor(args []string) {
 	}
 	fmt.Println(t.Failure("doctor: found issues"))
 	fmt.Println(t.Dim("  hint: check plugin.json files against docs/plugins/authoring.md / docs/templates/authoring.md, or set LUMO_PLUGIN_DIRS to point at the right directories."))
-	os.Exit(1)
+	exit(1)
 }
 
 func configUsage() {
@@ -613,7 +661,7 @@ func configUsage() {
 func cmdConfig(args []string) {
 	if len(args) < 2 || (args[0] != "get" && args[0] != "set") || args[1] != "theme" {
 		configUsage()
-		os.Exit(1)
+		exit(1)
 	}
 	if args[0] == "get" {
 		cmdConfigGetTheme()
@@ -626,7 +674,7 @@ func cmdConfigGetTheme() {
 	cfg, err := prompt.LoadConfig()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		exit(1)
 	}
 	fmt.Println(cfg.Theme)
 }
@@ -634,22 +682,22 @@ func cmdConfigGetTheme() {
 func cmdConfigSetTheme(rest []string) {
 	if len(rest) < 1 {
 		configUsage()
-		os.Exit(1)
+		exit(1)
 	}
 	name := rest[0]
 	if !isValidThemeName(name) {
 		fmt.Fprintf(os.Stderr, "unknown theme %q (want one of: %s)\n", name, strings.Join(prompt.ThemeNames(), ", "))
-		os.Exit(1)
+		exit(1)
 	}
 	cfg, err := prompt.LoadConfig()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		exit(1)
 	}
 	cfg.Theme = name
 	if err := prompt.SaveConfig(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		exit(1)
 	}
 }
 
