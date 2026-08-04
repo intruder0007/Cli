@@ -10,6 +10,7 @@ use (
 	./templates/cpp-cli
 	./templates/go-rest-api
 	./templates/java-rest-api
+	./templates/kotlin-cli
 	./templates/node-rest-api
 	./templates/python-rest-api
 	./templates/rust-rest-api

@@ -610,6 +610,70 @@ func TestEndToEndGenerateJavaRestAPI(t *testing.T) {
 	}
 }
 
+// TestEndToEndGenerateKotlinCLI proves the Kotlin template (plain
+// kotlinc, no Gradle) actually builds and passes its own tests. NOT
+// LOCALLY VERIFIED where this test was written (no Kotlin compiler
+// was available — see templates/kotlin-cli/main.go) — this guarded
+// skip means the first real run of this test is CI.
+func TestEndToEndGenerateKotlinCLI(t *testing.T) {
+	if exec.Command("kotlinc", "-version").Run() != nil {
+		t.Skip("kotlinc not found on PATH — skipping (see .github/workflows/ci.yml for the CI Kotlin setup)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("lumo"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "kotlin-cli")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/kotlin-cli", filepath.Join(templateDir, exeName("kotlin-cli")))
+	copyFile(t, filepath.Join(root, "templates", "kotlin-cli", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-kotlin-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "cli-tool",
+		"--language", "kotlin",
+		"--framework", "cli",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "LUMO_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("lumo new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{
+		filepath.Join("src", "Calc.kt"), filepath.Join("src", "Main.kt"),
+		filepath.Join("test", "CalcTest.kt"), "README.md", ".gitignore",
+	}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	testJar := filepath.Join(projectDir, "test.jar")
+	buildCmd := exec.Command("kotlinc", filepath.Join("src", "Calc.kt"), filepath.Join("test", "CalcTest.kt"), "-include-runtime", "-d", testJar)
+	buildCmd.Dir = projectDir
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Kotlin project failed to build: %v\n%s", err, out)
+	}
+
+	testCmd := exec.Command("java", "-jar", testJar)
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Kotlin project failed its own tests: %v\n%s", err, out)
+	}
+}
+
 // TestEndToEndGenerateViaEmbeddedFallback proves the actual claim behind
 // ADR-0012: a lumo binary with no sibling templates/plugins
 // directories at all — exactly what `go install` produces — still
