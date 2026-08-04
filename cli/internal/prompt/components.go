@@ -123,6 +123,23 @@ func NoteLine(t Theme, text string) string {
 	return t.Warn("Note: ") + text
 }
 
+// ErrorPanel builds the failure screen (O-04 Failure, design-system
+// §4 "S09: ErrorPanel anatomy"): a "[FAIL]/✗ <message>" line (Failure),
+// an indented hint (Warn), and an optional indented docs reference
+// (Dim) — deliberately unbordered, unlike StatusPanel/ConfirmCard: the
+// spec composes O-04 from Failure + Note, not a panel box. hint and ref
+// may be "" to omit either line.
+func ErrorPanel(t Theme, headline, hint, ref string) []string {
+	lines := []string{"", t.Failure(headline)}
+	if hint != "" {
+		lines = append(lines, t.Warn("  "+hint))
+	}
+	if ref != "" {
+		lines = append(lines, t.Dim("  reference: "+ref))
+	}
+	return append(lines, "")
+}
+
 // ProgressBar renders the percentage bar (M-04 ProgressBar).
 // Default: "[███████░░░░] 60%"; minimal: "[##########--------] 60%".
 func ProgressBar(t Theme, pct int, width int) string {

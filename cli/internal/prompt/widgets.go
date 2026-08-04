@@ -262,9 +262,9 @@ func multiSelectMenu(o *Output, r io.Reader, t Theme, label string, opts []optio
 	draw := func() {
 		lines := []string{optionTitle(t, label)}
 		for pos, idx := range visible {
-			box := t.Unchecked
+			box := t.Glyph(GlyphUnchecked)
 			if selected[idx] {
-				box = t.Checked
+				box = t.Glyph(GlyphChecked)
 			}
 			lines = append(lines, optionLine(t, opts[idx], pos == cursor, box))
 		}

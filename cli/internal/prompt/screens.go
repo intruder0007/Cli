@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"strings"
 	"time"
 
@@ -19,42 +18,12 @@ import (
 
 // Banner prints the small startup wordmark before the line-fallback
 // (piped/non-terminal) wizard. The interactive TUI path renders the
-// richer WelcomeScreen instead. Deliberately small — a professional tool
-// doesn't need large ASCII art (design-spec §1.2).
+// richer landing screen instead (wizard.go's welcomeRender, S01).
+// Deliberately small — a professional tool doesn't need large ASCII art
+// (design-spec §1.2).
 func Banner(w io.Writer, t Theme) {
 	SetTitle("Lumo — New Project")
 	fmt.Fprintln(w, BrandHeader(t))
-}
-
-// WelcomeScreen is the interactive landing screen (design-spec S01,
-// §7): the brand wordmark, a one-line explanation of what Lumo does, the
-// version/runtime identity, and the keyboard hints. It answers "where am
-// I" (brand), "what is this" (caption), and "what can I do" (hints) in
-// one calm screen.
-func WelcomeScreen(w io.Writer, t Theme, version string) {
-	o := NewOutput(w)
-	o.ClearScreen()
-	SetTitle("Lumo — New Project")
-
-	lines := []string{
-		"",
-		BrandHeader(t),
-		"",
-		Caption(t, "Scaffold a project in seconds: describe the stack — template, language,"),
-		Caption(t, "framework, capabilities — and Lumo generates a tested, ready-to-run project."),
-		"",
-		t.Dim(fmt.Sprintf("lumo %s · %s · %s/%s", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)),
-		"",
-	}
-	if hint := KeyHints(t, []Key{
-		{Label: "start", Keys: []string{"enter"}},
-		{Label: "quit", Keys: []string{"ctrl+c"}},
-	}, o.Width(), o.TTY()); hint != "" {
-		lines = append(lines, hint)
-	}
-	for _, l := range lines {
-		o.Println(l)
-	}
 }
 
 // successProjectRows builds the project-information dashboard rows for
@@ -83,34 +52,44 @@ func successProjectRows(t Theme, projectName string, s engine.Summary) []string 
 // file tree, next steps, and a time note when the run was slow.
 func SuccessScreen(w io.Writer, t Theme, projectName string, s engine.Summary, elapsed time.Duration) {
 	SetTitle("Lumo — Success")
-	fmt.Fprintln(w, t.Success(fmt.Sprintf("Generated %s", projectName)))
+	for _, l := range successLines(t, projectName, s, elapsed) {
+		fmt.Fprintln(w, l)
+	}
+}
+
+// successLines assembles the success screen (O-03 Completion,
+// screen-spec S07) as pre-styled lines, so SuccessScreen prints it as
+// one batch instead of interleaving writes with layout logic.
+func successLines(t Theme, projectName string, s engine.Summary, elapsed time.Duration) []string {
+	var lines []string
+	lines = append(lines, t.Success(fmt.Sprintf("Generated %s", projectName)))
 
 	summaryLine := fmt.Sprintf("template: %s · %d file(s)", s.Template, len(s.FilesWritten))
 	if len(s.CapabilitiesApplied) > 0 {
 		summaryLine += fmt.Sprintf(" · capabilities: %s", strings.Join(s.CapabilitiesApplied, ", "))
 	}
-	fmt.Fprintln(w, t.Dim("  "+summaryLine))
+	lines = append(lines, t.Dim("  "+summaryLine))
 
 	if rows := successProjectRows(t, projectName, s); len(rows) > 0 {
-		fmt.Fprintln(w)
+		lines = append(lines, "")
 		for _, l := range StatusPanel(t, "Project", rows) {
-			fmt.Fprintln(w, "  "+l)
+			lines = append(lines, "  "+l)
 		}
 	}
 
 	// File tree: grouped by producer when the engine returned groups
 	// (design-spec §6.1 rule 1), else the flat list.
-	fmt.Fprintln(w)
+	lines = append(lines, "")
 	tree := groupedFileTree(t, s)
 	if len(tree) == 0 {
-		fmt.Fprintln(w, t.Dim("  no files written"))
+		lines = append(lines, t.Dim("  no files written"))
 	}
 	for _, l := range tree {
-		fmt.Fprintln(w, "  "+l)
+		lines = append(lines, "  "+l)
 	}
 
 	if len(s.NextSteps) > 0 {
-		fmt.Fprintln(w)
+		lines = append(lines, "")
 		// The first next step is always a "cd into the project"; plugins
 		// may already return one themselves, so only prepend when they
 		// didn't (design-spec §7: never show the same step twice).
@@ -118,14 +97,12 @@ func SuccessScreen(w io.Writer, t Theme, projectName string, s engine.Summary, e
 		if !strings.HasPrefix(steps[0], "cd ") {
 			steps = append([]string{"cd " + projectName}, steps...)
 		}
-		for _, l := range NextSteps(t, steps) {
-			fmt.Fprintln(w, l)
-		}
+		lines = append(lines, NextSteps(t, steps)...)
 	}
 	if elapsed > 5*time.Second {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, t.Dim("completed in "+formatDuration(elapsed)))
+		lines = append(lines, "", t.Dim("completed in "+formatDuration(elapsed)))
 	}
+	return lines
 }
 
 func groupedFileTree(t Theme, s engine.Summary) []string {
@@ -159,22 +136,16 @@ func printCancelled(w io.Writer, t Theme) {
 	fmt.Fprintln(w, t.Info("cancelled"))
 }
 
-// ErrorScreen renders a failure (O-04 Failure): what happened (failure
-// line), why/next step (hint), and a documentation reference where one
-// exists. Receives the error, never a raw stack trace, and sanitizes
-// executable paths out of the message (design-spec §8.8: the screen
-// never exposes the plugin binary's name or location).
+// ErrorScreen renders a failure (O-04 Failure, via ErrorPanel): what
+// happened (failure line), why/next step (hint), and a documentation
+// reference where one exists. Receives the error, never a raw stack
+// trace, and sanitizes executable paths out of the message (design-spec
+// §8.8: the screen never exposes the plugin binary's name or location).
 func ErrorScreen(w io.Writer, t Theme, err error) {
 	SetTitle("Lumo — Error")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, t.Failure(errorMessage(err)))
-	if hint := suggestHint(err); hint != "" {
-		fmt.Fprintln(w, t.Dim("  "+hint))
+	for _, l := range ErrorPanel(t, errorMessage(err), suggestHint(err), docsRef(err)) {
+		fmt.Fprintln(w, l)
 	}
-	if ref := docsRef(err); ref != "" {
-		fmt.Fprintln(w, t.Dim("  reference: "+ref))
-	}
-	fmt.Fprintln(w)
 }
 
 // errorMessage renders err for the failure screen, replacing a plugin
