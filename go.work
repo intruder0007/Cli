@@ -7,7 +7,10 @@ use (
 	./plugins/builtin/github-actions-ci
 	./plugins/builtin/readme
 	./sdk/go
+	./templates/cpp-cli
 	./templates/go-rest-api
 	./templates/node-rest-api
+	./templates/rust-rest-api
+	./templates/typescript-rest-api
 	./tests
 )

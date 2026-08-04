@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "rust-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "Rust REST API Service",
+  "projectType": "backend-service",
+  "language": "rust",
+  "framework": "http-api",
+  "entrypoint": "./rust-rest-api"
+}

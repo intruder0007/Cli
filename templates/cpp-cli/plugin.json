@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "cpp-cli",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "C++ CLI Tool",
+  "projectType": "cli-tool",
+  "language": "cpp",
+  "framework": "cli",
+  "entrypoint": "./cpp-cli"
+}
