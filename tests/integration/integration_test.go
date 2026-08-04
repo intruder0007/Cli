@@ -541,6 +541,75 @@ func TestEndToEndGeneratePythonRestAPI(t *testing.T) {
 	}
 }
 
+// javaToolchainAvailable reports whether both javac and java actually
+// run (not just resolve on PATH — see pythonCommand's comment for why
+// that distinction matters on Windows).
+func javaToolchainAvailable() bool {
+	return exec.Command("javac", "-version").Run() == nil && exec.Command("java", "-version").Run() == nil
+}
+
+// TestEndToEndGenerateJavaRestAPI proves the Java template
+// (com.sun.net.httpserver + java.net.http, no Maven) actually builds
+// and passes its own tests. NOT LOCALLY VERIFIED where this test was
+// written (no JDK was available — see
+// templates/java-rest-api/main.go) — this guarded skip means the
+// first real run of this test is CI.
+func TestEndToEndGenerateJavaRestAPI(t *testing.T) {
+	if !javaToolchainAvailable() {
+		t.Skip("javac/java not found on PATH — skipping (see .github/workflows/ci.yml for the CI Java setup)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("lumo"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "java-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/java-rest-api", filepath.Join(templateDir, exeName("java-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "java-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-java-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "backend-service",
+		"--language", "java",
+		"--framework", "http-api",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "LUMO_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("lumo new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{filepath.Join("src", "Server.java"), filepath.Join("src", "ServerTest.java"), "README.md", ".gitignore"}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	outDir := filepath.Join(projectDir, "out")
+	buildCmd := exec.Command("javac", "-d", outDir, filepath.Join("src", "Server.java"), filepath.Join("src", "ServerTest.java"))
+	buildCmd.Dir = projectDir
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Java project failed to build: %v\n%s", err, out)
+	}
+
+	testCmd := exec.Command("java", "-cp", outDir, "ServerTest")
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Java project failed its own tests: %v\n%s", err, out)
+	}
+}
+
 // TestEndToEndGenerateViaEmbeddedFallback proves the actual claim behind
 // ADR-0012: a lumo binary with no sibling templates/plugins
 // directories at all — exactly what `go install` produces — still
