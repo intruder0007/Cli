@@ -382,8 +382,12 @@ Version bumps and the changelog entry land in the same commit.
 go test ./...
 go test -count=1 ./tests/...      # ~63s integration
 
-# Build (embedded assets must be staged first; or use the release pipeline)
-go build -ldflags "-X main.version=v1.0.0" -o bin/lumo.exe ./cli
+# Build: stage plugin binaries into cli/internal/embedded/assets, THEN build.
+# A plain `go build ./cli` (without stage-embedded) embeds no plugin assets
+# and fails to generate projects outside a source checkout — use make build
+# (make build), or on Windows run the stage-embedded steps by hand, or just
+# `go run ./cli` from the repo root where templates/ is a sibling directory.
+go build -ldflags "-X main.version=v0.4.0" -o bin/lumo.exe ./cli
 
 # Lint
 npx markdownlint-cli@0.43.0 <files> --config .markdownlint.json
@@ -502,11 +506,15 @@ node scripts/verify-release.js    # must fail pre-v1.0.0 (404s)
 ## 14. Agent environment & gotchas (this dev box)
 
 - **OS / shell:** Windows 11, PowerShell 7 (`pwsh`). No `make` locally (the
-  `Makefile` is for CI; local build is `go build ... -o bin/lumo.exe ./cli`).
+  `Makefile` is for CI; local build is `go run ./cli` from the repo root, or
+  `go build ... -o bin/lumo.exe ./cli` after staging embedded assets — see §9).
 - **Toolchain:** Go 1.26.5, Node v24.13.0, npm 11.6.2. No `rg`, `python`, or
   globally-installed `markdownlint` — use `npx markdownlint-cli@0.43.0`.
 - **Embedded staging** is gitignored and manual on a dev box; for real
   binaries use the release pipeline. Embed dir: `cli/internal/embedded/assets`.
+  A binary built without staging embeds no plugin assets and cannot generate
+  projects outside a source checkout — this is the "lumo.exe does nothing but
+  bootstrap.exe works" failure mode (staged binaries embed the V1 plugin set).
 - **Git line endings**: autocrlf warns "LF will be replaced by CRLF" — harmless;
   golden transcripts are pinned to LF via `.gitattributes`.
 - **npm auth**: automation token in `~/.npmrc` and a GitHub `NPM_TOKEN`

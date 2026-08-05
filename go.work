@@ -3,11 +3,11 @@ go 1.22
 use (
 	./cli
 	./core
+	./plugins/builtin/git-init
+	./plugins/builtin/github-actions-ci
+	./plugins/builtin/readme
 	./sdk/go
 	./templates/go-rest-api
 	./templates/node-rest-api
-	./plugins/builtin/git-init
-	./plugins/builtin/readme
-	./plugins/builtin/github-actions-ci
 	./tests
 )

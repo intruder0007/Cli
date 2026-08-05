@@ -75,6 +75,26 @@ lumo new my-project \
   --capabilities git-init,readme,github-actions-ci
 ```
 
+### Target paths
+
+The positional argument is a project name **or a target path**; the
+project name (used by templates to name the module/service) is always
+the path's final component:
+
+- `lumo new my-app` — creates `./my-app` (relative to the CWD).
+- `lumo new ./work/app` — creates the app inside an explicit relative
+  directory (parents are created as needed).
+- `lumo new /abs/path/app` (Unix) or `lumo new C:\code\app` (Windows)
+  — creates at an explicit absolute location.
+- `lumo new ~/code/app` — `~` expands to the user's home directory on
+  all platforms (`~/` and `~\` are both accepted).
+
+The project-name rules (start with a letter; letters, digits, `-`, `_`
+only) apply to the final path component, so `lumo new ./x/2bad` is
+rejected just like `lumo new 2bad`. Everything else in the path can be
+arbitrary. This works identically for the answers-file form, where
+`projectName` may hold a path.
+
 or, from a file:
 
 ```sh
@@ -90,6 +110,10 @@ language: go
 framework: rest-api
 capabilities: [git-init, readme, github-actions-ci]
 ```
+
+The `projectName` value follows the same rules as the positional
+argument: it may be a bare name or a target path (see
+[Target paths](#target-paths)).
 
 ## Other commands
 

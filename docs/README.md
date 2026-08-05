@@ -14,6 +14,20 @@ platform (plugin/template authors, SDK users, wrapper maintainers).
   and a quick start.
 - [`docs/cli/usage.md`](cli/usage.md) — every command, flag, and exit
   code, plus the interactive/non-interactive paths.
+- [`docs/cli/design-spec.md`](cli/design-spec.md) — the Lumo CLI design
+  specification: identity, status line, navigation, wizard flow,
+  progress, completion, errors, accessibility, performance, theming,
+  cross-platform behavior.
+- [`docs/cli/screen-spec.md`](cli/screen-spec.md) — text-level
+  wireframes for every screen, in both themes, with implementation
+  status per screen.
+- [`docs/cli/design-roadmap.md`](cli/design-roadmap.md) — how the
+  design ships across the v0.4 → v1.0.0 releases without breaking the
+  semver contract.
+- [`docs/cli/design-system.md`](cli/design-system.md) — the component
+  library every screen composes: tokens, glyphs, the persistent
+  step-based progress bar, terminal-title behavior, and the
+  command → component map.
 
 ## Architecture (design docs + ADRs)
 

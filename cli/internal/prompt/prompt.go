@@ -200,9 +200,12 @@ func ParseAnswersFile(path string) (config.Answers, error) {
 		}
 	}
 	// A file that sets no fields (or only unknown ones) is almost always
-	// a path typo or a format mistake — validate the full answer set now,
-	// so the user learns about it before any codegen runs.
-	if err := a.Validate(); err != nil {
+	// a path typo or a format mistake — validate the answer shape now, so
+	// the user learns about it before any codegen runs. The project-name
+	// pattern is intentionally deferred: projectName may hold a target
+	// path (e.g. "./a/b/app") that cmdNew resolves to a name + directory
+	// before validating the name (see config.Answers.ValidateShape).
+	if err := a.ValidateShape(); err != nil {
 		return a, fmt.Errorf("validating answers file %s: %w", path, err)
 	}
 	return a, nil
