@@ -468,6 +468,79 @@ func TestEndToEndGenerateCppCLI(t *testing.T) {
 	}
 }
 
+// pythonCommand returns the first working Python 3 interpreter on
+// PATH — "python3" (the common name on Linux/macOS/CI) or "python"
+// (common on Windows) — or "" if neither actually runs. Checks more
+// than LookPath: on Windows, "python"/"python3" can resolve to the App
+// Execution Alias stub (a real PATH entry that prints a Microsoft
+// Store prompt and exits non-zero instead of running anything) when no
+// real interpreter is installed, so a plain LookPath success is not
+// sufficient evidence of a usable interpreter.
+func pythonCommand() string {
+	for _, name := range []string{"python3", "python"} {
+		if exec.Command(name, "--version").Run() == nil {
+			return name
+		}
+	}
+	return ""
+}
+
+// TestEndToEndGeneratePythonRestAPI proves the Python template (stdlib
+// http.server/unittest, zero pip installs) actually runs its own test
+// suite. NOT LOCALLY VERIFIED where this test was written (no working
+// Python interpreter was available — see
+// templates/python-rest-api/main.go) — this LookPath-guarded skip
+// means the first real run of this test is CI.
+func TestEndToEndGeneratePythonRestAPI(t *testing.T) {
+	python := pythonCommand()
+	if python == "" {
+		t.Skip("no python3/python found on PATH — skipping (see .github/workflows/ci.yml for the CI Python setup)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("lumo"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "python-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/python-rest-api", filepath.Join(templateDir, exeName("python-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "python-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-python-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "backend-service",
+		"--language", "python",
+		"--framework", "http-api",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "LUMO_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("lumo new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{"server.py", "test_server.py", "README.md", ".gitignore"}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	testCmd := exec.Command(python, "-m", "unittest", "discover")
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Python project failed its own tests: %v\n%s", err, out)
+	}
+}
+
 // TestEndToEndGenerateViaEmbeddedFallback proves the actual claim behind
 // ADR-0012: a lumo binary with no sibling templates/plugins
 // directories at all — exactly what `go install` produces — still
