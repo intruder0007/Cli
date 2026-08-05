@@ -56,6 +56,21 @@ jobs:
           distribution: "temurin"
           java-version: "21"
 
+      # kotlin-cli's TestEndToEndGenerateKotlinCLI needs kotlinc on
+      # PATH. There's no official actions/setup-kotlin, so this
+      # installs the compiler directly from JetBrains' own GitHub
+      # releases (a pinned version, not a third-party Action) rather
+      # than trusting an unverified community action for a compiler
+      # toolchain. Same "written without a local Kotlin compiler, CI
+      # is the first real run" situation as Python/Java above (see
+      # templates/kotlin-cli/main.go).
+      - name: Install Kotlin compiler
+        run: |
+          KOTLIN_VERSION=2.0.21
+          curl -sSL -o kotlinc.zip "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
+          unzip -q kotlinc.zip -d "$HOME/kotlinc-install"
+          echo "$HOME/kotlinc-install/kotlinc/bin" >> "$GITHUB_PATH"
+
       # tests/integration exercises the git-init capability plugin,
       # which runs `git commit`; a fresh runner has no git identity
       # configured (developer machines usually already have one, so

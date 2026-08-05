@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "kotlin-cli",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "Kotlin CLI Tool",
+  "projectType": "cli-tool",
+  "language": "kotlin",
+  "framework": "cli",
+  "entrypoint": "./kotlin-cli"
+}
