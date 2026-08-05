@@ -1,5 +1,6 @@
 cpp-cli
 go-rest-api
+java-rest-api
 node-rest-api
 python-rest-api
 rust-rest-api

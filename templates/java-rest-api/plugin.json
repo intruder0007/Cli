@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "java-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "Java REST API Service",
+  "projectType": "backend-service",
+  "language": "java",
+  "framework": "http-api",
+  "entrypoint": "./java-rest-api"
+}

@@ -9,6 +9,7 @@ use (
 	./sdk/go
 	./templates/cpp-cli
 	./templates/go-rest-api
+	./templates/java-rest-api
 	./templates/node-rest-api
 	./templates/python-rest-api
 	./templates/rust-rest-api

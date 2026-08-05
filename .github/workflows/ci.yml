@@ -45,6 +45,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      # tests/integration's TestEndToEndGenerateJavaRestAPI needs
+      # javac/java on PATH. Same "written without a local JDK, CI is
+      # the first real run" situation as Python above (see
+      # templates/java-rest-api/main.go). A JDK setup here also covers
+      # the Kotlin template that follows in a later PR, since kotlinc
+      # needs a JDK underneath it.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
       # tests/integration exercises the git-init capability plugin,
       # which runs `git commit`; a fresh runner has no git identity
       # configured (developer machines usually already have one, so
