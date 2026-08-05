@@ -131,7 +131,7 @@ var languageNames = map[string]string{
 	"go": "Go", "node": "Node.js", "typescript": "TypeScript",
 	"python": "Python", "rust": "Rust", "java": "Java", "csharp": "C#",
 	"ruby": "Ruby", "php": "PHP", "kotlin": "Kotlin", "swift": "Swift",
-	"dart": "Dart",
+	"dart": "Dart", "cpp": "C++",
 }
 
 func languageDisplayName(id string) string {

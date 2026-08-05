@@ -285,6 +285,189 @@ func TestEndToEndGenerateNodeRestAPI(t *testing.T) {
 	}
 }
 
+// TestEndToEndGenerateTypeScriptRestAPI mirrors
+// TestEndToEndGenerateNodeRestAPI: same zero-npm-install philosophy,
+// but the generated source is TypeScript, run directly via Node's
+// built-in type stripping (see templates/typescript-rest-api/main.go).
+func TestEndToEndGenerateTypeScriptRestAPI(t *testing.T) {
+	if _, err := exec.LookPath("npm"); err != nil {
+		t.Skip("npm not found on PATH — skipping (see .github/workflows/ci.yml for the CI Node.js setup)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("lumo"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "typescript-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/typescript-rest-api", filepath.Join(templateDir, exeName("typescript-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "typescript-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-typescript-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "backend-service",
+		"--language", "typescript",
+		"--framework", "http-api",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "LUMO_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("lumo new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{"package.json", "tsconfig.json", "server.ts", "server.test.ts", "README.md", ".gitignore"}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	testCmd := exec.Command("npm", "test")
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated TypeScript project failed its own tests: %v\n%s", err, out)
+	}
+}
+
+// TestEndToEndGenerateRustRestAPI proves the Rust template (std-only,
+// no crates.io fetch) actually builds and passes its own tests.
+func TestEndToEndGenerateRustRestAPI(t *testing.T) {
+	if _, err := exec.LookPath("cargo"); err != nil {
+		t.Skip("cargo not found on PATH — skipping (see .github/workflows/ci.yml for the CI Rust setup)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("lumo"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "rust-rest-api")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/rust-rest-api", filepath.Join(templateDir, exeName("rust-rest-api")))
+	copyFile(t, filepath.Join(root, "templates", "rust-rest-api", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-rust-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "backend-service",
+		"--language", "rust",
+		"--framework", "http-api",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "LUMO_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("lumo new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{"Cargo.toml", filepath.Join("src", "main.rs"), "README.md", ".gitignore"}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	testCmd := exec.Command("cargo", "test")
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Rust project failed its own tests: %v\n%s", err, out)
+	}
+}
+
+// makeCommand returns the first available make implementation on PATH
+// — plain "make" on Linux/macOS/CI, "mingw32-make" on a Windows dev
+// machine where MinGW ships make under that name instead — or "" if
+// neither is found.
+func makeCommand() string {
+	for _, name := range []string{"make", "mingw32-make"} {
+		if _, err := exec.LookPath(name); err == nil {
+			return name
+		}
+	}
+	return ""
+}
+
+// TestEndToEndGenerateCppCLI proves the C++ template (plain Makefile +
+// g++ -std=c++14, no CMake, no extra deps) actually builds and passes
+// its own tests.
+func TestEndToEndGenerateCppCLI(t *testing.T) {
+	make := makeCommand()
+	if make == "" {
+		t.Skip("no make/mingw32-make found on PATH — skipping")
+	}
+	if _, err := exec.LookPath("g++"); err != nil {
+		t.Skip("g++ not found on PATH — skipping (see .github/workflows/ci.yml for the CI C++ toolchain)")
+	}
+
+	root := repoRoot(t)
+	bin := t.TempDir()
+
+	cliPath := filepath.Join(bin, exeName("lumo"))
+	buildBinary(t, root, "cli", cliPath)
+
+	templateDir := filepath.Join(bin, "templates", "cpp-cli")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildBinary(t, root, "templates/cpp-cli", filepath.Join(templateDir, exeName("cpp-cli")))
+	copyFile(t, filepath.Join(root, "templates", "cpp-cli", "plugin.json"), filepath.Join(templateDir, "plugin.json"))
+
+	genParent := t.TempDir()
+	const projectName = "e2e-cpp-demo"
+
+	cmd := exec.Command(cliPath, "new", projectName,
+		"--project-type", "cli-tool",
+		"--language", "cpp",
+		"--framework", "cli",
+		"--theme", "minimal",
+	)
+	cmd.Dir = genParent
+	cmd.Env = append(os.Environ(), "LUMO_PLUGIN_DIRS="+filepath.Join(bin, "templates"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("lumo new failed: %v\n%s", err, out)
+	}
+
+	projectDir := filepath.Join(genParent, projectName)
+
+	expected := []string{
+		"Makefile", filepath.Join("include", "calc.hpp"),
+		filepath.Join("src", "calc.cpp"), filepath.Join("src", "main.cpp"),
+		filepath.Join("test", "test_main.cpp"), "README.md", ".gitignore",
+	}
+	for _, f := range expected {
+		if _, err := os.Stat(filepath.Join(projectDir, f)); err != nil {
+			t.Errorf("expected generated path %s: %v", f, err)
+		}
+	}
+
+	buildCmd := exec.Command(make, "build")
+	buildCmd.Dir = projectDir
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C++ project failed to build: %v\n%s", err, out)
+	}
+
+	testCmd := exec.Command(make, "test")
+	testCmd.Dir = projectDir
+	if out, err := testCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C++ project failed its own tests: %v\n%s", err, out)
+	}
+}
+
 // TestEndToEndGenerateViaEmbeddedFallback proves the actual claim behind
 // ADR-0012: a lumo binary with no sibling templates/plugins
 // directories at all — exactly what `go install` produces — still

@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "typescript-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "TypeScript REST API Service",
+  "projectType": "backend-service",
+  "language": "typescript",
+  "framework": "http-api",
+  "entrypoint": "./typescript-rest-api"
+}

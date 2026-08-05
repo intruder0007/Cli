@@ -16,13 +16,25 @@ jobs:
         with:
           go-version: "1.22"
 
-      # tests/integration's TestEndToEndGenerateNodeRestAPI needs a real
-      # node/npm on PATH — explicit rather than relying on whatever
-      # ubuntu-latest happens to ship, so a runner-image change can't
-      # silently start skipping the cross-language proof.
+      # tests/integration's TestEndToEndGenerateNodeRestAPI/
+      # TypeScriptRestAPI need a real node/npm on PATH — explicit rather
+      # than relying on whatever ubuntu-latest happens to ship, so a
+      # runner-image change can't silently start skipping either
+      # cross-language proof.
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      # tests/integration's TestEndToEndGenerateRustRestAPI needs cargo
+      # on PATH, same reasoning as setup-node above. The Rust template
+      # itself has no crates.io dependencies, so this is the only
+      # network access its verification needs.
+      - uses: dtolnay/rust-toolchain@stable
+
+      # cpp-cli's TestEndToEndGenerateCppCLI needs g++ + make; both ship
+      # on ubuntu-latest by default (no dedicated setup action needed —
+      # see docs/templates/authoring.md and the D1 PR description for
+      # why C++ intentionally has no CMake dependency here).
 
       # tests/integration exercises the git-init capability plugin,
       # which runs `git commit`; a fresh runner has no git identity
