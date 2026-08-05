@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "name": "csharp-rest-api",
+  "version": "0.1.0",
+  "kind": "template",
+  "displayName": "C# REST API Service",
+  "projectType": "backend-service",
+  "language": "csharp",
+  "framework": "http-api",
+  "entrypoint": "./csharp-rest-api"
+}

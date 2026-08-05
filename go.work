@@ -8,6 +8,7 @@ use (
 	./plugins/builtin/readme
 	./sdk/go
 	./templates/cpp-cli
+	./templates/csharp-rest-api
 	./templates/go-rest-api
 	./templates/java-rest-api
 	./templates/kotlin-cli

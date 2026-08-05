@@ -71,6 +71,15 @@ jobs:
           unzip -q kotlinc.zip -d "$HOME/kotlinc-install"
           echo "$HOME/kotlinc-install/kotlinc/bin" >> "$GITHUB_PATH"
 
+      # csharp-rest-api's TestEndToEndGenerateCSharpRestAPI needs a
+      # working dotnet on PATH, same "written without a working local
+      # .NET SDK, CI is the first real run" situation as
+      # Python/Java/Kotlin above (see
+      # templates/csharp-rest-api/main.go).
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
       # tests/integration exercises the git-init capability plugin,
       # which runs `git commit`; a fresh runner has no git identity
       # configured (developer machines usually already have one, so
