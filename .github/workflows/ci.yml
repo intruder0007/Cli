@@ -36,11 +36,21 @@ jobs:
       # go.work only exists once the cli branch has merged; guard so PRs
       # against earlier branches (architecture/sdk/core/...) don't fail
       # trying to build modules that aren't present yet.
+      #
+      # templates/registry.txt is the single source of truth for which
+      # template modules exist (see Makefile) — module lists here are
+      # built from it instead of hardcoding each template by name, so
+      # adding a language doesn't require touching this workflow.
       - name: Build & vet present modules
         run: |
-          for m in cli core sdk/go templates/go-rest-api templates/node-rest-api \
-                   plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci \
-                   tests; do
+          modules="cli core sdk/go"
+          if [ -f templates/registry.txt ]; then
+            while IFS= read -r t; do
+              [ -n "$t" ] && modules="$modules templates/$t"
+            done < templates/registry.txt
+          fi
+          modules="$modules plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci tests"
+          for m in $modules; do
             if [ -f "$m/go.mod" ]; then
               echo "== $m =="
               (cd "$m" && go build ./... && go vet ./...)
@@ -49,9 +59,14 @@ jobs:
 
       - name: Test present modules
         run: |
-          for m in cli core sdk/go templates/go-rest-api templates/node-rest-api \
-                   plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci \
-                   tests; do
+          modules="cli core sdk/go"
+          if [ -f templates/registry.txt ]; then
+            while IFS= read -r t; do
+              [ -n "$t" ] && modules="$modules templates/$t"
+            done < templates/registry.txt
+          fi
+          modules="$modules plugins/builtin/git-init plugins/builtin/readme plugins/builtin/github-actions-ci tests"
+          for m in $modules; do
             if [ -f "$m/go.mod" ]; then
               echo "== $m =="
               (cd "$m" && go test ./...)
