@@ -19,16 +19,18 @@ func TestStepChromeEmptyName(t *testing.T) {
 }
 
 func TestWizardStepNameMatchesScreenSpec(t *testing.T) {
-	// screen-spec.md S02-S07 titles, by step constant.
+	// screen-spec.md-derived titles, by step constant (location is new,
+	// not yet in the S02-S07 doc numbering).
 	cases := map[int]string{
-		stepName:  "Project name",
-		stepTheme: "Theme",
-		stepType:  "Project type",
-		stepLang:  "Language",
-		stepFw:    "Framework",
-		6:         "Capabilities",
-		7:         "Confirm",
-		99:        "Step",
+		stepName:     "Project name",
+		stepLocation: "Location",
+		stepTheme:    "Theme",
+		stepType:     "Project type",
+		stepLang:     "Language",
+		stepFw:       "Framework",
+		7:            "Capabilities",
+		8:            "Confirm",
+		99:           "Step",
 	}
 	for st, want := range cases {
 		if got := wizardStepName(st); got != want {

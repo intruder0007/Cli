@@ -26,6 +26,8 @@ func wizardStepName(st int) string {
 	switch st {
 	case stepName:
 		return "Project name"
+	case stepLocation:
+		return "Location"
 	case stepTheme:
 		return "Theme"
 	case stepType:
@@ -34,9 +36,9 @@ func wizardStepName(st int) string {
 		return "Language"
 	case stepFw:
 		return "Framework"
-	case 6:
-		return "Capabilities"
 	case 7:
+		return "Capabilities"
+	case 8:
 		return "Confirm"
 	default:
 		return "Step"

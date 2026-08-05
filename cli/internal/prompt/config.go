@@ -6,12 +6,18 @@ import (
 	"path/filepath"
 )
 
-// Config is the CLI's small persisted local config — today, just the
-// last-chosen theme. Only the interactive wizard path writes it (see
-// ADR-0007): --theme/--answers runs never mutate persisted state, so
-// scripted/CI usage stays side-effect-free.
+// Config is the CLI's small persisted local config — the last-chosen
+// theme and the last-used project location. Only the interactive
+// wizard path writes it (see ADR-0007): --theme/--answers/--dir runs
+// never mutate persisted state, so scripted/CI usage stays
+// side-effect-free.
 type Config struct {
 	Theme string `json:"theme,omitempty"`
+	// DefaultProjectsDir is the last directory the interactive wizard's
+	// location step was pointed at — offered as that step's editable
+	// pre-fill on the next run (never silently applied without asking;
+	// see wizard.go's stepLocation).
+	DefaultProjectsDir string `json:"defaultProjectsDir,omitempty"`
 }
 
 // configPath returns the path to the CLI's config file, using the OS's

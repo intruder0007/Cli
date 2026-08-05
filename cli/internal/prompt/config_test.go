@@ -28,8 +28,11 @@ func TestConfigRoundTrip(t *testing.T) {
 	if got.Theme != "" {
 		t.Errorf("LoadConfig with no saved file: got Theme=%q, want empty", got.Theme)
 	}
+	if got.DefaultProjectsDir != "" {
+		t.Errorf("LoadConfig with no saved file: got DefaultProjectsDir=%q, want empty", got.DefaultProjectsDir)
+	}
 
-	if err := SaveConfig(Config{Theme: "minimal"}); err != nil {
+	if err := SaveConfig(Config{Theme: "minimal", DefaultProjectsDir: `C:\Users\me\Projects`}); err != nil {
 		t.Fatalf("SaveConfig: %v", err)
 	}
 
@@ -39,5 +42,8 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 	if got.Theme != "minimal" {
 		t.Errorf("LoadConfig after SaveConfig(Theme: \"minimal\"): got %q, want %q", got.Theme, "minimal")
+	}
+	if want := `C:\Users\me\Projects`; got.DefaultProjectsDir != want {
+		t.Errorf("LoadConfig after SaveConfig(DefaultProjectsDir): got %q, want %q", got.DefaultProjectsDir, want)
 	}
 }

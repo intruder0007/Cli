@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/term"
@@ -17,7 +18,7 @@ import (
 // wizard.go — the interactive wizard (organism O-01). On a real
 // terminal it runs as a sequence of single-focus screens:
 //
-//	welcome → name → theme → type → language → framework
+//	welcome → name → location → theme → type → language → framework
 //	        → capabilities (when installed) → confirm → (generate)
 //
 // Each screen is one widget (input / menu / multi-select / confirm),
@@ -25,6 +26,13 @@ import (
 // title ("Step N of M · <name>", the progress indicator), the body
 // widget, and a contextual hint bar — answering "where am I", "what is
 // happening", "what can I do", and "what happens next".
+//
+// The location step always asks where to generate — never the current
+// working directory (which, on Windows, is the launching .exe's own
+// folder when double-clicked) and never silently. It's pre-filled with
+// the last-used location (persisted config) or a home-relative default,
+// editable every run, and the choice is re-persisted on each run that
+// reaches it.
 //
 // Navigation (design-spec §3.2/3.3): ↑↓/jk move, Home/End or g/G jump,
 // Enter confirms, Space toggles, Esc clears a filter first then goes
@@ -44,12 +52,35 @@ func noTemplatesErr() error {
 // it only when at least one capability plugin is installed, so the
 // step count (and the "N of M" progress indicator) reflects reality.
 const (
-	stepName  = 1
-	stepTheme = 2
-	stepType  = 3
-	stepLang  = 4
-	stepFw    = 5
+	stepName     = 1
+	stepLocation = 2
+	stepTheme    = 3
+	stepType     = 4
+	stepLang     = 5
+	stepFw       = 6
 )
+
+// defaultProjectsDir is the location step's fallback pre-fill when no
+// location has been persisted yet (first run): the user's home
+// directory plus "Projects" — stable regardless of how the binary was
+// launched, unlike the current working directory. "." is the last
+// resort if the home directory can't be determined.
+func defaultProjectsDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return filepath.Join(home, "Projects")
+}
+
+// persistProjectsDir saves the interactively-chosen project location
+// (wizard-only, mirroring persistTheme — --dir/--answers never write
+// it).
+func persistProjectsDir(dir string) {
+	cfg, _ := LoadConfig()
+	cfg.DefaultProjectsDir = dir
+	_ = SaveConfig(cfg)
+}
 
 // RunWizard walks the full interactive flow on a real terminal, or the
 // numbered-prompt fallback otherwise. version is shown on the welcome
@@ -73,9 +104,9 @@ func RunWizard(out io.Writer, spec WizardSpec, version string) (config.Answers, 
 
 // wizardSteps returns the total step count for this spec.
 func wizardSteps(spec WizardSpec) int {
-	steps := 6 // name, theme, type, language, framework, confirm
+	steps := 7 // name, location, theme, type, language, framework, confirm
 	if len(spec.Capabilities) > 0 {
-		steps = 7
+		steps = 8
 	}
 	return steps
 }
@@ -136,17 +167,39 @@ func runWizardTUI(fd int, out io.Writer, spec WizardSpec, version string) (confi
 	steps := wizardSteps(spec)
 	hasCaps := len(spec.Capabilities) > 0
 
+	// location is collected separately from a.ProjectName (the bare
+	// name) and only combined into a path at confirm/return time — see
+	// combinedTarget — so backing up to the name or location step never
+	// double-joins an already-combined value.
+	location := cfg.DefaultProjectsDir
+
 	st := stepName
 	for {
 		var err error
 		switch st {
 		case stepName:
 			var name string
-			name, err = textInput(o, in, theme, wizardStepTitle(st, steps), defaultNamePlaceholder)
+			name, err = textInput(o, in, theme, wizardStepTitle(st, steps), defaultNamePlaceholder, a.ProjectName)
 			if err == nil {
 				a.ProjectName = strings.TrimSpace(name)
 				if a.ProjectName == "" {
 					err = fmt.Errorf("project name is required")
+				}
+			}
+		case stepLocation:
+			def := location
+			if def == "" {
+				def = defaultProjectsDir()
+			}
+			var loc string
+			loc, err = textInput(o, in, theme, wizardStepTitle(st, steps), "", def)
+			if err == nil {
+				loc = strings.TrimSpace(loc)
+				if loc == "" {
+					err = fmt.Errorf("project location is required")
+				} else {
+					location = loc
+					persistProjectsDir(loc)
 				}
 			}
 		case stepTheme:
@@ -167,7 +220,7 @@ func runWizardTUI(fd int, out io.Writer, spec WizardSpec, version string) (confi
 		case stepFw:
 			opts := spec.frameworkOptions(a.ProjectType, a.Language)
 			a.Framework, err = selectMenu(o, in, theme, wizardStepTitle(st, steps), opts, spec.defaultFor(opts, "rest-api"))
-		case 6:
+		case 7:
 			if hasCaps {
 				var sel []string
 				sel, err = multiSelectMenu(o, in, theme, wizardStepTitle(st, steps), spec.capabilityOptions())
@@ -175,18 +228,19 @@ func runWizardTUI(fd int, out io.Writer, spec WizardSpec, version string) (confi
 					a.Capabilities = sel
 				}
 			} else {
-				// no capability plugins: step 6 is the confirm screen.
-				err = confirmStep(o, in, theme, st, steps, a)
+				// no capability plugins: step 7 is the confirm screen.
+				err = confirmStep(o, in, theme, st, steps, withTarget(a, location))
 			}
-		case 7:
-			err = confirmStep(o, in, theme, st, steps, a)
+		case 8:
+			err = confirmStep(o, in, theme, st, steps, withTarget(a, location))
 		default:
 			return a, fmt.Errorf("wizard: unknown step %d", st)
 		}
 
 		switch {
 		case errors.Is(err, errConfirmed):
-			return a, a.Validate()
+			a.ProjectName = combinedTarget(location, a.ProjectName)
+			return a, a.ValidateShape()
 		case err == nil:
 			st++
 		case errors.Is(err, ErrBack):
@@ -200,8 +254,28 @@ func runWizardTUI(fd int, out io.Writer, spec WizardSpec, version string) (confi
 	}
 }
 
+// combinedTarget joins the wizard's separately-collected location and
+// bare project name into the single path config.Answers.ProjectName
+// carries downstream (see cli/main.go's resolveTargetPath, which
+// already knows how to split a path-like ProjectName back into a
+// target directory and name — the same mechanism --answers files use).
+func combinedTarget(location, name string) string {
+	if location == "" {
+		return name
+	}
+	return filepath.Join(location, name)
+}
+
+// withTarget returns a copy of a with ProjectName resolved to the
+// combined location+name path, for screens (the confirm card) that need
+// to display the real target before the wizard has actually returned.
+func withTarget(a config.Answers, location string) config.Answers {
+	a.ProjectName = combinedTarget(location, a.ProjectName)
+	return a
+}
+
 // errConfirmed is the internal signal that the user confirmed the
-// summary (Enter on the confirm screen): step 6/7 then return the
+// summary (Enter on the confirm screen): step 7/8 then return the
 // answers rather than advancing past the last step (which would fall
 // through into the "unknown step" error).
 var errConfirmed = errors.New("wizard: confirmed")
@@ -221,8 +295,9 @@ func confirmStep(o *Output, in io.Reader, t Theme, st, steps int, a config.Answe
 }
 
 // defaultNamePlaceholder is shown inside the name input while it's empty
-// (design-spec §4.2).
-const defaultNamePlaceholder = "my-app (or a path like ../my-app)"
+// (design-spec §4.2). The location step (stepLocation) collects where
+// to generate; this field is just the project's name.
+const defaultNamePlaceholder = "my-app"
 
 // persistTheme saves the interactively-chosen theme (wizard-only, per
 // ADR-0007 — theme/--answers never write it).
@@ -334,6 +409,21 @@ func runWizardLine(in *bufio.Reader, out io.Writer, spec WizardSpec) (config.Ans
 	}
 
 	cfg, _ := LoadConfig()
+
+	// Location is always asked here too — never defaulted to the
+	// current working directory silently — pre-filled with the
+	// last-used location or a home-relative default (see
+	// defaultProjectsDir), same as the TUI wizard's stepLocation.
+	def := cfg.DefaultProjectsDir
+	if def == "" {
+		def = defaultProjectsDir()
+	}
+	location := ask(in, out, "Location", def)
+	if location == "" {
+		return a, fmt.Errorf("project location is required")
+	}
+	persistProjectsDir(location)
+
 	themeID := cfg.Theme
 	if themeID == "" {
 		themeID = "default"
@@ -350,7 +440,8 @@ func runWizardLine(in *bufio.Reader, out io.Writer, spec WizardSpec) (config.Ans
 	if len(spec.Capabilities) > 0 {
 		a.Capabilities = askMulti(in, out, "Capabilities (comma-separated ids, blank for none)", spec.capabilityOptions())
 	}
-	return a, a.Validate()
+	a.ProjectName = combinedTarget(location, a.ProjectName)
+	return a, a.ValidateShape()
 }
 
 func ask(in *bufio.Reader, out io.Writer, label, def string) string {
