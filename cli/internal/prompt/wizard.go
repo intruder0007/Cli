@@ -80,27 +80,10 @@ func wizardSteps(spec WizardSpec) int {
 	return steps
 }
 
+// wizardStepTitle builds the step chrome (see chrome.go) for step st of
+// a steps-step wizard run.
 func wizardStepTitle(st, steps int) string {
-	name := ""
-	switch st {
-	case stepName:
-		name = "Project name"
-	case stepTheme:
-		name = "Theme"
-	case stepType:
-		name = "Project type"
-	case stepLang:
-		name = "Language"
-	case stepFw:
-		name = "Framework"
-	case 6:
-		name = "Capabilities"
-	case 7:
-		name = "Confirm"
-	default:
-		name = "Step"
-	}
-	return fmt.Sprintf("Step %d of %d · %s", st, steps, name)
+	return StepChrome(st, steps, wizardStepName(st))
 }
 
 // runWizardTUI runs the terminal wizard. It puts the terminal into raw

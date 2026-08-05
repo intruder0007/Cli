@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/intruder0007/Lumo/core/engine"
 	"github.com/intruder0007/Lumo/core/plugin"
 )
 
@@ -84,5 +86,79 @@ func TestMinimalThemeGlyphsAreStable(t *testing.T) {
 		if g := got.Glyph(kind); g != want {
 			t.Errorf("minimal Glyph(%d) = %q, want %q", kind, g, want)
 		}
+	}
+}
+
+// ErrorPanel (O-04 Failure, screen-spec S09) is unbordered: a headline,
+// an optional hint, an optional reference, each on its own line, framed
+// by a leading and trailing blank line.
+func TestErrorPanelShape(t *testing.T) {
+	theme := GetTheme("minimal", false)
+
+	full := ErrorPanel(theme, "boom", "hint: try again", "docs/foo.md")
+	want := []string{"", "[FAIL] boom", "  hint: try again", "  reference: docs/foo.md", ""}
+	if len(full) != len(want) {
+		t.Fatalf("ErrorPanel with hint+ref: got %d lines, want %d: %q", len(full), len(want), full)
+	}
+	for i := range want {
+		if full[i] != want[i] {
+			t.Errorf("ErrorPanel line %d = %q, want %q", i, full[i], want[i])
+		}
+	}
+
+	bare := ErrorPanel(theme, "boom", "", "")
+	if len(bare) != 3 {
+		t.Errorf("ErrorPanel with no hint/ref: got %d lines, want 3 (blank, headline, blank): %q", len(bare), bare)
+	}
+}
+
+// ErrorScreen prints exactly what ErrorPanel builds — the rewrite from
+// interleaved Fprintln calls to a single []string must not change
+// output.
+func TestErrorScreenMatchesErrorPanel(t *testing.T) {
+	theme := GetTheme("minimal", false)
+	err := errors.New("project name \"2bad\" must start with a letter")
+
+	var buf strings.Builder
+	ErrorScreen(&buf, theme, err)
+
+	want := strings.Join(ErrorPanel(theme, errorMessage(err), suggestHint(err), docsRef(err)), "\n") + "\n"
+	if buf.String() != want {
+		t.Errorf("ErrorScreen output = %q, want %q", buf.String(), want)
+	}
+}
+
+// successLines always leads with the "Generated <name>" line and
+// includes the file tree and next steps when present.
+func TestSuccessLinesShape(t *testing.T) {
+	theme := GetTheme("minimal", false)
+	s := engine.Summary{
+		Template:            "go-rest-api",
+		FilesWritten:        []string{"go.mod", "main.go"},
+		CapabilitiesApplied: []string{"git-init"},
+		NextSteps:           []string{"go build ./...", "go test ./..."},
+	}
+
+	lines := successLines(theme, "my-app", s, 0)
+	if len(lines) == 0 {
+		t.Fatal("successLines returned no lines")
+	}
+	if !strings.Contains(lines[0], "Generated my-app") {
+		t.Errorf("successLines[0] = %q, want it to contain %q", lines[0], "Generated my-app")
+	}
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "go.mod") || !strings.Contains(joined, "main.go") {
+		t.Errorf("successLines should list every written file:\n%s", joined)
+	}
+	if !strings.Contains(joined, "cd my-app") {
+		t.Errorf("successLines should prepend a \"cd my-app\" next step:\n%s", joined)
+	}
+	if strings.Contains(joined, "completed in") {
+		t.Errorf("successLines should omit the slow-run note under 5s:\n%s", joined)
+	}
+
+	slow := successLines(theme, "my-app", s, 6*time.Second)
+	if !strings.Contains(strings.Join(slow, "\n"), "completed in") {
+		t.Error("successLines should include a slow-run note over 5s")
 	}
 }

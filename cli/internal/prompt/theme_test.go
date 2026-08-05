@@ -33,12 +33,12 @@ func TestGetThemeNoColorOverride(t *testing.T) {
 }
 
 func TestRegisterThemeIsExtensible(t *testing.T) {
-	RegisterTheme(Theme{Name: "test-only-theme", UseColor: true, Cursor: "*"})
+	RegisterTheme(Theme{Name: "test-only-theme", UseColor: true, UseIcons: true, Glyphs: map[GlyphKind]string{GlyphCursor: "*"}})
 	defer delete(themeRegistry, "test-only-theme")
 
 	got := GetTheme("test-only-theme", false)
-	if got.Cursor != "*" {
-		t.Errorf("got Cursor=%q, want %q — RegisterTheme should make new themes immediately available via GetTheme", got.Cursor, "*")
+	if g := got.Glyph(GlyphCursor); g != "*" {
+		t.Errorf("got Glyph(GlyphCursor)=%q, want %q — RegisterTheme should make new themes immediately available via GetTheme", g, "*")
 	}
 
 	found := false

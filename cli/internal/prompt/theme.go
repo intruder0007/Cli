@@ -35,22 +35,36 @@ const (
 	TokenCaret   Token = "caret"   // the input caret
 )
 
+// lumoCyan is the brand accent code shared by every cyan-tagged token
+// below: sampled directly from logo.png (dominant fill
+// ~rgb(0,216,248)) and mapped to the nearest xterm-256 color (idx 45,
+// rgb(0,215,255) — a ~2% delta).
+const lumoCyan = "38;5;45"
+
 // tokenCode maps each Token to its ANSI SGR code in a color theme.
 // All default-theme pairs are chosen for WCAG AA contrast on the
 // common light and dark terminal backgrounds (design-spec §8.4).
+//
+// Primary/Accent/Header/Caret use lumoCyan, Lumo's brand color.
+// Border picks up a slate blue-gray (idx 60, rgb(95,95,135)) echoing
+// the logo's navy at a similar luminance to the gray it replaces, so
+// it stays visible on both light and dark backgrounds without a full
+// re-derivation of the WCAG AA pairs above (tracked separately —
+// design-system.md §8.2). True 24-bit color is deliberately out of
+// scope here: see docs/cli/design-spec.md's identity notes.
 var tokenCode = map[Token]string{
-	TokenPrimary: "1;36",
-	TokenAccent:  "38;5;75",
+	TokenPrimary: lumoCyan,
+	TokenAccent:  lumoCyan,
 	TokenSuccess: "32",
 	TokenFailure: "31",
 	TokenWarn:    "38;5;214",
 	TokenDim:     "2",
 	TokenMuted:   "2",
-	TokenBorder:  "38;5;240",
-	TokenHeader:  "1;36",
+	TokenBorder:  "38;5;60",
+	TokenHeader:  lumoCyan,
 	TokenInfo:    "37",
 	TokenBold:    "1",
-	TokenCaret:   "38;5;75",
+	TokenCaret:   lumoCyan,
 }
 
 // GlyphKind names one of the theme-aware glyphs (design-system §2.4).
@@ -101,10 +115,6 @@ type Theme struct {
 	UseColor bool
 	UseIcons bool
 
-	// Cursor marks the highlighted row in a menu.
-	Cursor string
-	// Checked/Unchecked are the multi-select checkbox glyphs.
-	Checked, Unchecked string
 	// Spinner frames animate the in-progress phase of a run
 	// (progress.go). Empty means an ASCII fallback is used.
 	Spinner []string
@@ -147,10 +157,11 @@ func ThemeNames() []string {
 
 // GetTheme looks up a theme by name, falling back to "default" if the
 // name is unknown or empty. noColor forces both UseColor and UseIcons
-// off regardless of the theme's own defaults and swaps the color-cue
-// glyphs (❯/◉/▏ and the like) for their ASCII equivalents — a plain
-// terminal shouldn't show icon-in-color cues either. minimal is already
-// UseColor:false/UseIcons:false, so noColor is a no-op for it.
+// off regardless of the theme's own defaults — Glyph's UseIcons check
+// (see below) then resolves every color-cue glyph (❯/◉/▏ and the like)
+// to its ASCII equivalent, so a plain terminal never shows icon-in-color
+// cues. minimal is already UseColor:false/UseIcons:false, so noColor is
+// a no-op for it.
 func GetTheme(name string, noColor bool) Theme {
 	t, ok := themeRegistry[name]
 	if !ok {
@@ -159,11 +170,6 @@ func GetTheme(name string, noColor bool) Theme {
 	if noColor {
 		t.UseColor = false
 		t.UseIcons = false
-		if m, ok := themeRegistry["minimal"]; ok {
-			t.Cursor = m.Cursor
-			t.Checked = m.Checked
-			t.Unchecked = m.Unchecked
-		}
 	}
 	return t
 }
@@ -203,7 +209,6 @@ func envOr(key, def string) string {
 func init() {
 	RegisterTheme(Theme{
 		Name: "default", UseColor: true, UseIcons: true,
-		Cursor: "❯", Checked: "◉", Unchecked: "○",
 		Spinner: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		Palette: map[Token]string{
 			TokenPrimary: tokenCode[TokenPrimary], TokenAccent: tokenCode[TokenAccent],
@@ -223,7 +228,6 @@ func init() {
 	})
 	RegisterTheme(Theme{
 		Name: "minimal", UseColor: false, UseIcons: false,
-		Cursor: ">", Checked: "[x]", Unchecked: "[ ]",
 		Spinner: []string{"|", "/", "-", "\\"},
 		Panel:   [6]string{"+", "+", "+", "+", "|", "-"},
 		Glyphs: map[GlyphKind]string{
@@ -260,15 +264,6 @@ func withDefaults(t Theme) Theme {
 		if t.Panel[i] == "" {
 			t.Panel[i] = g
 		}
-	}
-	if t.Cursor == "" {
-		t.Cursor = def.Cursor
-	}
-	if t.Checked == "" {
-		t.Checked = def.Checked
-	}
-	if t.Unchecked == "" {
-		t.Unchecked = def.Unchecked
 	}
 	if len(t.Spinner) == 0 {
 		t.Spinner = def.Spinner
