@@ -609,7 +609,7 @@ func printEmbeddedStatus(t prompt.Theme, dirs []string) {
 		fmt.Println(t.Dim("  no plugin assets embedded in this binary (a dev build without `make build`'s staging step)"))
 		return
 	}
-	fmt.Println(t.Success("  plugin assets are embedded in this binary"))
+	fmt.Println(t.Success("plugin assets are embedded in this binary"))
 
 	cacheDir, err := embeddedCacheDir()
 	if err != nil || len(dirs) < 2 {
@@ -644,7 +644,7 @@ func cmdDoctor(args []string) {
 			abs = d
 		}
 		if info, err := os.Stat(abs); err == nil && info.IsDir() {
-			fmt.Println(t.Success("  " + abs))
+			fmt.Println(t.Success(abs))
 		} else {
 			fmt.Println(t.Dim("  " + abs + " (not found, skipped)"))
 		}
@@ -668,10 +668,10 @@ func cmdDoctor(args []string) {
 		ok = false
 	}
 	for _, p := range found {
-		fmt.Println(t.Success(fmt.Sprintf("  %s (%s) v%s", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version)))
+		fmt.Println(t.Success(fmt.Sprintf("%s (%s) v%s", p.Manifest.Name, p.Manifest.Kind, p.Manifest.Version)))
 	}
 	for _, issue := range issues {
-		fmt.Println(t.Failure(fmt.Sprintf("  %s: %v", issue.Path, issue.Err)))
+		fmt.Println(t.Failure(fmt.Sprintf("%s: %v", issue.Path, issue.Err)))
 		ok = false
 	}
 
